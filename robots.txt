@@ -1,0 +1,12 @@
+
+User-agent: *
+Allow: /
+Allow: /homes
+Allow: /news
+Allow: /search
+Allow: /listing/
+Disallow: /admin-access-portal
+Disallow: /workspace
+Disallow: /auth
+
+Sitemap: https://trazot.com/sitemap.xml

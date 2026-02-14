@@ -1,0 +1,8 @@
+{
+  "name": "Trade Zone New",
+  "description": "The most trusted marketplace to buy houses, sell luxury vehicles, and trade premium electronics in GCC and South Asia.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
