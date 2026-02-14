@@ -32,7 +32,9 @@ import {
   ImageIcon,
   Loader2,
   Upload,
-  CloudUpload
+  CloudUpload,
+  ClipboardCheck,
+  History
 } from 'lucide-react';
 import { storageService } from '../services/storageService.ts';
 import { processImage } from '../services/imageService.ts';
@@ -86,6 +88,11 @@ const AdminPanel: React.FC = () => {
     setListings(storageService.getListings());
     setNews(storageService.getNews());
     setView('dashboard');
+  };
+
+  const handleSync = () => {
+    initializeDashboard();
+    notify('Ledger Synchronized', 'info', 'All regional data nodes refreshed');
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -182,10 +189,14 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  const filteredListings = useMemo(() => {
+  const pendingListings = useMemo(() => {
+    return listings.filter(l => l.status === AdStatus.PENDING);
+  }, [listings]);
+
+  const activeInventory = useMemo(() => {
     return listings.filter(l => 
-      l.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      l.id.toLowerCase().includes(searchQuery.toLowerCase())
+      l.status !== AdStatus.PENDING && 
+      (l.title.toLowerCase().includes(searchQuery.toLowerCase()) || l.id.toLowerCase().includes(searchQuery.toLowerCase()))
     );
   }, [listings, searchQuery]);
 
@@ -245,6 +256,13 @@ const AdminPanel: React.FC = () => {
       <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-12 gap-8 bg-white p-6 md:p-10 rounded-[40px] border border-gray-100 shadow-sm">
         <h1 className="text-3xl md:text-5xl font-serif-italic text-emerald-950">Command <span className="text-emerald-600">Console</span></h1>
         <div className="flex items-center gap-3 w-full lg:w-auto">
+          <button 
+            onClick={handleSync}
+            className="p-5 bg-emerald-50 text-emerald-600 rounded-2xl hover:bg-emerald-100 transition-all border border-emerald-100"
+            title="Sync Regional Nodes"
+          >
+            <RefreshCw className={`w-5 h-5 ${isUploading ? 'animate-spin' : ''}`} />
+          </button>
           <button 
             onClick={() => {
               setNewsForm({ title: '', category: 'Market Trend', image: '', content: '' });
@@ -312,62 +330,178 @@ const AdminPanel: React.FC = () => {
       )}
 
       {activeTab === 'listings' && (
-        <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-hidden animate-in fade-in duration-500">
-          <div className="p-8 border-b border-gray-50 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-emerald-950">Asset Ledger</h2>
-            <div className="relative">
-               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-               <input 
-                type="text" 
-                placeholder="ID or Title..." 
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="bg-gray-50 rounded-xl py-2.5 pl-10 pr-4 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500 w-64"
-               />
+        <div className="space-y-12 animate-in fade-in duration-500">
+          
+          {/* 1. REVIEW QUEUE (The specific request fix) */}
+          <div className="bg-emerald-950 rounded-[40px] border border-emerald-900 shadow-2xl overflow-hidden">
+            <div className="p-8 border-b border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                 <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white">
+                   <ClipboardCheck className="w-5 h-5" />
+                 </div>
+                 <h2 className="text-xl font-bold text-white uppercase tracking-tight">Audit Queue</h2>
+              </div>
+              <span className="bg-emerald-600 text-white px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest">
+                {pendingListings.length} Awaiting Verification
+              </span>
             </div>
-          </div>
-          <div className="divide-y divide-gray-50">
-            {filteredListings.map(l => (
-              <div key={l.id} className="p-4 md:p-6 flex flex-col sm:flex-row items-center justify-between gap-6 hover:bg-gray-50/50 transition-colors">
-                <div className="flex items-center gap-6 w-full sm:w-auto">
-                  <img src={l.images[0]} className="w-16 h-16 rounded-xl object-cover shadow-sm" alt="" />
-                  <div className="min-w-0">
-                    <h4 className="font-bold text-emerald-950 truncate max-w-xs">{l.title}</h4>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[8px] font-black uppercase text-emerald-600">{l.id}</span>
-                      <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${l.status === AdStatus.ACTIVE ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{l.status}</span>
+            
+            <div className="divide-y divide-white/5 bg-white/5">
+              {pendingListings.map(l => (
+                <div key={l.id} className="p-6 md:p-8 flex flex-col lg:flex-row items-center justify-between gap-8 hover:bg-white/10 transition-colors">
+                  <div className="flex items-center gap-8 w-full">
+                    <div className="relative group">
+                      <img src={l.images[0]} className="w-24 h-24 rounded-3xl object-cover shadow-2xl" alt="" />
+                      <div className="absolute -top-2 -left-2 w-8 h-8 bg-emerald-600 rounded-full flex items-center justify-center text-white text-[10px] font-black shadow-lg">
+                        <Clock className="w-4 h-4" />
+                      </div>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="text-[10px] font-black uppercase text-emerald-500 tracking-[0.2em]">{l.id}</span>
+                        <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">{new Date(l.createdAt).toLocaleDateString()}</span>
+                      </div>
+                      <h4 className="font-bold text-white text-xl truncate mb-2">{l.title}</h4>
+                      <div className="flex flex-wrap gap-2">
+                         <span className="text-[9px] font-black uppercase px-2.5 py-1 rounded-lg bg-white/10 text-emerald-400 border border-white/5">{l.category}</span>
+                         <span className="text-[9px] font-black uppercase px-2.5 py-1 rounded-lg bg-white/10 text-emerald-400 border border-white/5">{l.location.city}</span>
+                         <span className="text-[9px] font-black uppercase px-2.5 py-1 rounded-lg bg-emerald-600 text-white">{l.currency} {l.price.toLocaleString()}</span>
+                      </div>
                     </div>
                   </div>
+                  <div className="flex items-center gap-3 w-full lg:w-auto justify-end">
+                    <Link to={`/listing/${l.id}`} target="_blank" className="p-4 bg-white/5 text-white/60 rounded-2xl hover:bg-white/20 transition-all">
+                      <Eye className="w-5 h-5" />
+                    </Link>
+                    <button onClick={() => handleApprove(l.id)} className="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-emerald-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-emerald-500 transition-all shadow-xl active:scale-95">
+                      <CheckCircle className="w-4 h-4" /> Approve
+                    </button>
+                    <button onClick={() => handleReject(l.id)} className="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-amber-600/20 text-amber-500 px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-amber-600 hover:text-white transition-all border border-amber-600/30">
+                      <XCircle className="w-4 h-4" /> Reject
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                  {l.status !== AdStatus.ACTIVE && <button onClick={() => handleApprove(l.id)} className="p-3 bg-emerald-50 text-emerald-600 rounded-xl shadow-sm hover:bg-emerald-600 hover:text-white transition-all"><CheckCircle className="w-5 h-5" /></button>}
-                  {l.status !== AdStatus.REJECTED && <button onClick={() => handleReject(l.id)} className="p-3 bg-amber-50 text-amber-600 rounded-xl shadow-sm hover:bg-amber-500 hover:text-white transition-all"><XCircle className="w-5 h-5" /></button>}
-                  <button onClick={() => handleDeleteListing(l.id)} className="p-3 bg-white text-gray-300 hover:text-red-600 border border-gray-100 rounded-xl transition-all shadow-sm"><Trash className="w-5 h-5" /></button>
+              ))}
+              {pendingListings.length === 0 && (
+                <div className="text-center py-20">
+                  <ShieldCheck className="w-16 h-16 text-emerald-900/40 mx-auto mb-6" />
+                  <p className="text-emerald-100/20 text-sm font-black uppercase tracking-[0.4em]">Audit Queue Clear</p>
                 </div>
+              )}
+            </div>
+          </div>
+
+          {/* 2. GENERAL INVENTORY SEARCH */}
+          <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-hidden">
+            <div className="p-8 border-b border-gray-50 flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div>
+                <h2 className="text-xl font-bold text-emerald-950 uppercase tracking-tight">Regional Inventory</h2>
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mt-1">Status Management Hub</p>
               </div>
-            ))}
+              <div className="relative">
+                 <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                 <input 
+                  type="text" 
+                  placeholder="Filter by ID, Title, or Merchant..." 
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="bg-gray-50 rounded-[20px] py-4 pl-14 pr-6 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 w-full md:w-80 shadow-inner"
+                 />
+              </div>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {activeInventory.map(l => (
+                <div key={l.id} className="p-6 flex flex-col sm:flex-row items-center justify-between gap-6 hover:bg-gray-50/50 transition-colors">
+                  <div className="flex items-center gap-6 w-full sm:w-auto">
+                    <img src={l.images[0]} className="w-16 h-16 rounded-2xl object-cover shadow-sm grayscale" alt="" />
+                    <div className="min-w-0">
+                      <h4 className="font-bold text-emerald-950 truncate max-w-xs">{l.title}</h4>
+                      <div className="flex items-center gap-3 mt-1.5">
+                        <span className="text-[9px] font-black uppercase text-emerald-600 tracking-widest">{l.id}</span>
+                        <span className={`text-[8px] font-black uppercase px-2.5 py-1 rounded-lg border ${
+                          l.status === AdStatus.ACTIVE 
+                          ? 'bg-emerald-50 border-emerald-100 text-emerald-700' 
+                          : 'bg-amber-50 border-amber-100 text-amber-700'
+                        }`}>
+                          {l.status}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    {l.status !== AdStatus.ACTIVE && <button onClick={() => handleApprove(l.id)} className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl shadow-sm hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100"><CheckCircle className="w-5 h-5" /></button>}
+                    {l.status !== AdStatus.REJECTED && <button onClick={() => handleReject(l.id)} className="p-4 bg-amber-50 text-amber-600 rounded-2xl shadow-sm hover:bg-amber-500 hover:text-white transition-all border border-amber-100"><XCircle className="w-5 h-5" /></button>}
+                    <button onClick={() => handleDeleteListing(l.id)} className="p-4 bg-white text-gray-300 hover:text-red-600 border border-gray-100 rounded-2xl transition-all shadow-sm"><Trash className="w-5 h-5" /></button>
+                  </div>
+                </div>
+              ))}
+              {activeInventory.length === 0 && (
+                <div className="text-center py-20">
+                  <History className="w-12 h-12 text-gray-100 mx-auto mb-4" />
+                  <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">No matching history found.</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
 
       {activeTab === 'overview' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 animate-in fade-in duration-500">
-           {[
-             { label: 'Active Inventory', val: listings.filter(l => l.status === AdStatus.ACTIVE).length, icon: Layers, color: 'text-emerald-600' },
-             { label: 'Pending Audits', val: listings.filter(l => l.status === AdStatus.PENDING).length, icon: Clock, color: 'text-amber-500' },
-             { label: 'Total Node Usage', val: '4.2k+', icon: Users, color: 'text-blue-600' },
-             { label: 'Intelligence Depth', val: news.length, icon: Newspaper, color: 'text-purple-600' }
-           ].map((stat, i) => (
-             <div key={i} className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm flex items-center justify-between">
-                <div>
-                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">{stat.label}</p>
-                   <p className="text-3xl font-black text-emerald-950">{stat.val}</p>
-                </div>
-                <div className={`w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center ${stat.color}`}>
-                   <stat.icon className="w-6 h-6" />
-                </div>
-             </div>
-           ))}
+           <button 
+             onClick={() => setActiveTab('listings')}
+             className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm flex items-center justify-between hover:border-emerald-500 transition-all text-left group"
+           >
+              <div>
+                 <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Active Inventory</p>
+                 <p className="text-3xl font-black text-emerald-950">{listings.filter(l => l.status === AdStatus.ACTIVE).length}</p>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
+                 <Layers className="w-6 h-6" />
+              </div>
+           </button>
+
+           <button 
+             onClick={() => setActiveTab('listings')}
+             className={`p-8 rounded-[40px] border flex items-center justify-between transition-all text-left group ${
+               pendingListings.length > 0 
+               ? 'bg-emerald-950 border-emerald-950 shadow-2xl text-white' 
+               : 'bg-white border-gray-100 shadow-sm text-emerald-950'
+             }`}
+           >
+              <div>
+                 <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${pendingListings.length > 0 ? 'text-emerald-400' : 'text-gray-400'}`}>Pending Audits</p>
+                 <p className="text-3xl font-black">{pendingListings.length}</p>
+              </div>
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 ${
+                pendingListings.length > 0 ? 'bg-emerald-600 text-white' : 'bg-amber-50 text-amber-500'
+              }`}>
+                 <Clock className="w-6 h-6" />
+              </div>
+           </button>
+
+           <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm flex items-center justify-between">
+              <div>
+                 <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Regional Usage</p>
+                 <p className="text-3xl font-black text-emerald-950">4.2k+</p>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600">
+                 <Users className="w-6 h-6" />
+              </div>
+           </div>
+
+           <button 
+             onClick={() => setActiveTab('news')}
+             className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm flex items-center justify-between hover:border-emerald-500 transition-all text-left group"
+           >
+              <div>
+                 <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Intel Depth</p>
+                 <p className="text-3xl font-black text-emerald-950">{news.length}</p>
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-purple-50 flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform">
+                 <Newspaper className="w-6 h-6" />
+              </div>
+           </button>
         </div>
       )}
 
