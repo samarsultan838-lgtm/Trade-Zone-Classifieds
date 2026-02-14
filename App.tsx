@@ -21,6 +21,7 @@ import TrazotTools from './pages/TrazotTools.tsx';
 import Advertise from './pages/Advertise.tsx';
 import Homes from './pages/Homes.tsx';
 import Messages from './pages/Messages.tsx';
+import Services from './pages/Services.tsx';
 import { GoogleGenAI } from "@google/genai";
 import { storageService } from './services/storageService.ts';
 import { Language, i18n } from './services/i18nService.ts';
@@ -48,6 +49,8 @@ const SEOManager: React.FC<{ lang: Language }> = ({ lang }) => {
       title = `${t.premiumHomes} | Trazot Real Estate Hub`;
     } else if (path === '/news') {
       title = `${t.marketIntel} | Trazot Intelligence Network`;
+    } else if (path === '/services') {
+      title = `Institutional Services | Import, Export & Franchising | Trazot`;
     }
 
     document.title = title;
@@ -248,6 +251,7 @@ const App: React.FC = () => {
               <Route path="/post-ad" element={<PostAd />} />
               <Route path="/workspace" element={<Workspace />} />
               <Route path="/news" element={<News />} />
+              <Route path="/services" element={<Services />} />
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/privacy" element={<Privacy />} />

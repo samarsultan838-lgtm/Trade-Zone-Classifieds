@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { 
@@ -11,15 +10,15 @@ import {
   Facebook, 
   Linkedin, 
   Youtube, 
-  ArrowUpRight,
-  ExternalLink,
-  ShieldAlert,
-  Map,
-  CreditCard,
-  Container,
-  HardHat,
-  Settings,
-  Terminal
+  ArrowUpRight, 
+  ExternalLink, 
+  ShieldAlert, 
+  Map, 
+  CreditCard, 
+  Container, 
+  HardHat, 
+  Settings, 
+  Terminal 
 } from 'lucide-react';
 import { Language, i18n } from '../services/i18nService';
 
@@ -31,7 +30,7 @@ const Footer: React.FC<{ lang: Language }> = ({ lang }) => {
       title: t.footerLinks,
       links: [
         { label: 'Intelligence Network', to: '/news' },
-        { label: 'Premium Homes', to: '/homes' },
+        { label: 'Institutional Services', to: '/services' },
         { label: 'Ad Protocols', to: '/advertise' },
         { label: 'Trazot Tools', to: '/tools' },
         { label: 'Our Vision', to: '/about' }
@@ -40,10 +39,10 @@ const Footer: React.FC<{ lang: Language }> = ({ lang }) => {
     {
       title: t.footerCategories,
       links: [
-        { label: 'Construction Projects', to: '/search?category=Properties' },
-        { label: 'Industrial Machinery', to: '/search?category=General Items' },
+        { label: 'Construction Projects', to: '/services' },
+        { label: 'Industrial Machinery', to: '/services' },
         { label: 'Luxury Vehicles', to: '/search?category=Vehicles' },
-        { label: 'Import/Export Hub', to: '/about' },
+        { label: 'Import/Export Hub', to: '/services' },
         { label: 'Verified Listing', to: '/search?verified=true' }
       ]
     },
@@ -170,9 +169,9 @@ const Footer: React.FC<{ lang: Language }> = ({ lang }) => {
               </p>
            </div>
            <div className="flex flex-col md:items-end justify-center">
-              <button className="text-xs font-black uppercase tracking-widest text-white px-6 py-3 bg-emerald-600 rounded-xl hover:bg-emerald-500 transition-all flex items-center gap-2 shadow-lg shadow-emerald-900/20">
+              <Link to="/contact" className="text-xs font-black uppercase tracking-widest text-white px-6 py-3 bg-emerald-600 rounded-xl hover:bg-emerald-500 transition-all flex items-center gap-2 shadow-lg shadow-emerald-900/20">
                 B2B Live Support <ExternalLink className="w-3.5 h-3.5" />
-              </button>
+              </Link>
            </div>
         </div>
 

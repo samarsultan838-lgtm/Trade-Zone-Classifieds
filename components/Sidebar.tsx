@@ -13,7 +13,8 @@ import {
   Zap,
   TrendingUp,
   Building2,
-  MessageSquare
+  MessageSquare,
+  Globe
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -49,13 +50,12 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ icon, label, to, active, hasD
     </div>
   );
 
-  return to ? <Link to={to}>{content}</Link> : content;
+  return to ? <Link to={to} onClick={onClick}>{content}</Link> : content;
 };
 
 const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
   const location = useLocation();
   const [listingsOpen, setListingsOpen] = useState(false);
-  const [shopOpen, setShopOpen] = useState(false);
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -67,14 +67,15 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, o
       <aside className={`fixed inset-y-0 left-0 w-72 bg-white border-r border-gray-100 z-[70] transition-transform duration-300 transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static`}>
         <div className="flex flex-col h-full py-6">
           <nav className="flex-1 space-y-1 overflow-y-auto scrollbar-hide">
-            <SidebarItem icon={<LayoutDashboard className="w-5 h-5" />} label="Dashboard" to="/" active={isActive('/')} />
-            <SidebarItem icon={<Building2 className="w-5 h-5" />} label="Premium Homes" to="/homes" active={isActive('/homes')} />
-            <SidebarItem icon={<PlusSquare className="w-5 h-5" />} label="Post Listing" to="/post-ad" active={isActive('/post-ad')} />
-            <SidebarItem icon={<MessageSquare className="w-5 h-5" />} label="Messages" to="/messages" active={isActive('/messages')} />
-            <SidebarItem icon={<TrendingUp className="w-5 h-5" />} label="Advertise" to="/advertise" active={isActive('/advertise')} />
-            <SidebarItem icon={<Zap className="w-5 h-5" />} label="Trazot Tools" to="/tools" active={isActive('/tools')} />
-            <SidebarItem icon={<Home className="w-5 h-5" />} label="Listing Management" hasDropdown isOpen={listingsOpen} onClick={() => setListingsOpen(!listingsOpen)} />
-            <SidebarItem icon={<Inbox className="w-5 h-5" />} label="Market Intel" to="/news" active={isActive('/news')} />
+            <SidebarItem icon={<LayoutDashboard className="w-5 h-5" />} label="Dashboard" to="/" active={isActive('/')} onClick={onClose} />
+            <SidebarItem icon={<Building2 className="w-5 h-5" />} label="Premium Homes" to="/homes" active={isActive('/homes')} onClick={onClose} />
+            <SidebarItem icon={<Globe className="w-5 h-5" />} label="Institutional Services" to="/services" active={isActive('/services')} onClick={onClose} />
+            <SidebarItem icon={<PlusSquare className="w-5 h-5" />} label="Post Listing" to="/post-ad" active={isActive('/post-ad')} onClick={onClose} />
+            <SidebarItem icon={<MessageSquare className="w-5 h-5" />} label="Messages" to="/messages" active={isActive('/messages')} onClick={onClose} />
+            <SidebarItem icon={<TrendingUp className="w-5 h-5" />} label="Advertise" to="/advertise" active={isActive('/advertise')} onClick={onClose} />
+            <SidebarItem icon={<Zap className="w-5 h-5" />} label="Trazot Tools" to="/tools" active={isActive('/tools')} onClick={onClose} />
+            <SidebarItem icon={<Home className="w-5 h-5" />} label="Workspace" to="/workspace" active={isActive('/workspace')} onClick={onClose} />
+            <SidebarItem icon={<Inbox className="w-5 h-5" />} label="Market Intel" to="/news" active={isActive('/news')} onClick={onClose} />
           </nav>
         </div>
       </aside>
