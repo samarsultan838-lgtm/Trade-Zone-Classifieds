@@ -7,7 +7,9 @@ import Sidebar from './components/Sidebar.tsx';
 import Footer from './components/Footer.tsx';
 import { GoogleGenAI } from "@google/genai";
 import { storageService } from './services/storageService.ts';
+import { locationService } from './services/locationService.ts';
 import { Language, i18n } from './services/i18nService.ts';
+import { MARKET_KEYWORDS } from './constants.ts';
 
 // Lazy Load Pages
 const Home = lazy(() => import('./pages/Home.tsx'));
@@ -40,27 +42,31 @@ const SEOManager: React.FC<{ lang: Language }> = ({ lang }) => {
   const location = useLocation();
   const t = i18n.get(lang);
   const prevPathname = useRef(location.pathname);
+  const userCountry = locationService.detectUserCountry();
 
   useEffect(() => {
     const path = location.pathname;
-    let title = "Trazot | Elite Marketplace for Premium Assets";
-    let description = t.footerAbout;
+    const keywords = MARKET_KEYWORDS[userCountry] || MARKET_KEYWORDS['Pakistan'];
+    const keywordStr = [...keywords.motors, ...keywords.property].slice(0, 5).join(', ');
+    
+    let title = `Trazot | Elite Marketplace - ${userCountry}`;
+    let description = `${t.footerAbout} Trending: ${keywordStr}`;
 
     if (path === '/') {
-      title = `Trazot | ${t.buySale}`;
+      title = `Trazot | ${t.buySale} in ${userCountry}`;
     } else if (path.includes('/listing/')) {
       const id = path.split('/').pop();
       const listing = storageService.getListings().find(l => l.id === id);
       if (listing) {
         title = `Buy ${listing.title} for ${listing.currency} ${listing.price.toLocaleString()} | Trazot`;
-        description = `View details of ${listing.title} in ${listing.location.city}. Verified seller on Trazot Premium Classifieds.`;
+        description = `View details of ${listing.title} in ${listing.location.city}. Professional seller on Trazot.`;
       }
     }
 
     document.title = title;
     const metaDescription = document.querySelector('meta[name="description"]');
     if (metaDescription) metaDescription.setAttribute('content', description);
-  }, [location.pathname, lang, t]);
+  }, [location.pathname, lang, t, userCountry]);
 
   useEffect(() => {
     if (prevPathname.current !== location.pathname) {
@@ -92,7 +98,7 @@ const AIChatbot: React.FC<{ lang: Language, isOpen: boolean, onClose: () => void
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: userMsg,
-        config: { systemInstruction: "Concise assistant for Trazot Marketplace." }
+        config: { systemInstruction: "Concise assistant for Trazot Marketplace. Help with finding cars, property and tech." }
       });
       setMessages(prev => [...prev, { role: 'ai', text: response.text || "I'm sorry, I couldn't process that." }]);
     } catch (e) {

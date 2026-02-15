@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, User as UserIcon, Chrome, Apple, Facebook, ArrowRight, ShieldCheck, Sparkles, AlertTriangle, Loader2, Smartphone } from 'lucide-react';
+import { Mail, Lock, User as UserIcon, ArrowRight, ShieldCheck, Sparkles, AlertTriangle, Loader2, Smartphone } from 'lucide-react';
 import { storageService } from '../services/storageService.ts';
 import { User } from '../types.ts';
 
@@ -17,60 +17,53 @@ const Auth: React.FC = () => {
   });
   const navigate = useNavigate();
 
-  const handleAuth = (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
     
-    // Artificial delay for premium feel
-    setTimeout(() => {
+    try {
+      // 1. Pre-fetch latest data to ensure registry is up to date
+      await storageService.syncWithCloud();
+
       if (isLogin) {
-        // We look for users in the local registry or the cloud-synced registry
         const users = storageService.getUsers();
         const found = users.find(u => u.email.toLowerCase() === formData.email.toLowerCase());
         
         if (found) {
+          // In a real app, password verification would happen server-side
           storageService.updateUser(found);
-          setIsLoading(false);
           navigate('/workspace');
+        } else if (formData.email === 'guest@trazot.com') {
+           storageService.updateUser({
+             id: 'user_guest',
+             name: 'Guest Merchant',
+             email: 'guest@trazot.com',
+             isPremium: false,
+             tier: 'Free',
+             credits: 5,
+             joinedAt: new Date().toISOString()
+           });
+           navigate('/workspace');
         } else {
-          // Special check for hardcoded guest login if needed for testing, 
-          // though usually users should just register.
-          if (formData.email === 'guest@trazot.com') {
-             storageService.updateUser({
-               id: 'user_guest',
-               name: 'Guest Merchant',
-               email: 'guest@trazot.com',
-               isPremium: false,
-               tier: 'Free',
-               credits: 5,
-               joinedAt: new Date().toISOString()
-             });
-             navigate('/workspace');
-          } else {
-            setError("Merchant credentials not recognized. Please register a verified account.");
-            setIsLoading(false);
-          }
+          throw new Error("Merchant credentials not recognized. Please register a verified account.");
         }
       } else {
         // Registration Flow
         if (!formData.phone || formData.phone.length < 10) {
-          setError("A valid contact phone number is required for asset verification.");
-          setIsLoading(false);
-          return;
+          throw new Error("A valid contact phone number is required for asset verification.");
         }
 
         const check = storageService.isIdentifierUsed(formData.email);
         if (check.used) {
-          setError(`This email is already associated with an active Trade Node.`);
-          setIsLoading(false);
-          return;
+          throw new Error("This email is already associated with an active Trade Node.");
         }
 
         const newUser: User = {
-          id: `user_${Math.random().toString(36).substring(7)}`,
+          // High entropy ID for cloud safety
+          id: `node_${Date.now()}_${Math.random().toString(36).substring(7)}`,
           name: formData.name,
-          email: formData.email,
+          email: formData.email.toLowerCase(),
           phone: formData.phone,
           isPremium: false,
           tier: 'Free',
@@ -78,17 +71,14 @@ const Auth: React.FC = () => {
           joinedAt: new Date().toISOString()
         };
         
-        storageService.updateUser(newUser);
-        setIsLoading(false);
+        await storageService.updateUser(newUser);
         navigate('/workspace');
       }
-    }, 1200);
-  };
-
-  const handleGoogleAuth = () => {
-    setError("SSO (Single Sign-On) currently requires manual profile completion for regional compliance. Please use the registration form.");
-    // In a real app, this would redirect to Google OAuth. 
-    // Here we disable the "merchant@gmail.com" placeholder to keep data clean.
+    } catch (err: any) {
+      setError(err.message || "Network authorization failed.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

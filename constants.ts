@@ -1,3 +1,4 @@
+
 import { CategoryType, ListingPurpose, AdStatus, Listing } from './types.ts';
 
 export const COUNTRIES = [
@@ -10,6 +11,29 @@ export const COUNTRIES = [
   'Oman', 
   'Bahrain'
 ];
+
+export const MARKET_KEYWORDS: Record<string, { motors: string[], property: string[], tech: string[] }> = {
+  'Pakistan': {
+    motors: ['Used cars in Lahore', 'Used cars in Karachi', 'Suzuki Alto for sale', 'Honda Civic for sale', 'Toyota Corolla for sale', 'Bike for sale', 'Honda 125', 'Commercial vehicle', 'Truck for sale'],
+    property: ['House for sale in Lahore', 'House for sale in Karachi', 'Flat for sale in Karachi', 'Plot for sale in Islamabad', 'Commercial plot', 'House for rent', 'Portion for rent'],
+    tech: ['Mobile phones for sale', 'iPhone for sale', 'Used laptop', 'LED TV', 'Electronics for sale']
+  },
+  'India': {
+    motors: ['Used cars in Delhi', 'Used cars in Mumbai', 'Second hand car in Delhi', 'Bike for sale in India', 'Car for sale in India'],
+    property: ['Property for sale in Delhi', 'Flat for sale in Mumbai', 'Plot for sale in India', 'Commercial property in Delhi', 'House for rent Mumbai'],
+    tech: ['Mobile phones for sale India', 'Used laptop for sale India']
+  },
+  'United Arab Emirates': {
+    motors: ['Used cars for sale Dubai', 'Cars for sale direct owner', 'Car for rent in Dubai', 'Cars for sale in Sharjah'],
+    property: ['Property for sale in Dubai', 'Apartment for sale in Dubai', 'Villa for sale in Dubai', 'Flat for rent in Dubai', 'Shop for sale in Dubai', 'Property for sale Abu Dhabi'],
+    tech: ['Mobile phones for sale Dubai', 'Used electronics for sale UAE']
+  },
+  'Saudi Arabia': {
+    motors: ['Cars for sale Saudi Arabia', 'Used cars in Riyadh'],
+    property: ['Plot for sale Saudi Arabia', 'Property for sale in Riyadh'],
+    tech: ['Mobile phones for sale Saudi Arabia']
+  }
+};
 
 export const CITIES: Record<string, string[]> = {
   'Pakistan': [
@@ -90,25 +114,5 @@ export const INITIAL_LISTINGS: Listing[] = [
     contactPhone: '+971 50 1234567',
     whatsappNumber: '+971 50 1234567',
     details: { make: 'Mercedes-Benz', model: 'G63 AMG', year: 2023, mileage: 4500, fuelType: 'Petrol', transmission: 'Automatic' }
-  },
-  {
-    id: 'PRP-MUMBA-OFF1',
-    title: 'Commercial Floor in Downtown Mumbai',
-    description: 'Prime corporate space with 360-degree views of the sea link. High-speed elevators and 24/7 security.',
-    price: 450000000,
-    currency: 'INR',
-    category: CategoryType.PROPERTIES,
-    purpose: ListingPurpose.RENT,
-    images: ['https://picsum.photos/seed/office1/800/600'],
-    location: { country: 'India', city: 'Mumbai' },
-    status: AdStatus.ACTIVE,
-    userId: 'user_3',
-    createdAt: new Date().toISOString(),
-    featured: false,
-    isVerified: true,
-    contactEmail: 'corp@downtownmumbai.in',
-    contactPhone: '+91 98765 43210',
-    whatsappNumber: '+91 98765 43210',
-    details: { area: '12,000 Sqft', areaValue: 12000, length: 120, width: 100 }
   }
 ];

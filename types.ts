@@ -1,4 +1,5 @@
 
+
 export enum CategoryType {
   PROPERTIES = 'Properties',
   VEHICLES = 'Vehicles',
@@ -12,20 +13,25 @@ export enum ListingPurpose {
   WANTED = 'Wanted'
 }
 
+// Added missing properties: UPPER_PORTION, LOWER_PORTION, FARM_HOUSE, ROOM, PLOT_FILE, PLOT_FORM
 export enum PropertyType {
   HOUSE = 'House',
+  VILLA = 'Villa',
+  TOWNHOUSE = 'Townhouse',
   FLAT = 'Flat',
+  APARTMENT = 'Apartment',
+  STUDIO = 'Studio',
+  PENTHOUSE = 'Penthouse',
   UPPER_PORTION = 'Upper Portion',
   LOWER_PORTION = 'Lower Portion',
   FARM_HOUSE = 'Farm House',
   ROOM = 'Room',
-  PENTHOUSE = 'Penthouse',
   RESIDENTIAL_PLOT = 'Residential Plot',
   COMMERCIAL_PLOT = 'Commercial Plot',
-  AGRICULTURAL_LAND = 'Agricultural Land',
-  INDUSTRIAL_LAND = 'Industrial Land',
   PLOT_FILE = 'Plot File',
   PLOT_FORM = 'Plot Form',
+  AGRICULTURAL_LAND = 'Agricultural Land',
+  INDUSTRIAL_LAND = 'Industrial Land',
   OFFICE = 'Office',
   SHOP = 'Shop',
   WAREHOUSE = 'Warehouse',
