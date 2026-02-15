@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Search, User, Menu, Globe, ChevronDown, Check, Phone, Sparkles } from 'lucide-react';
+import { Search, User, Menu, Globe, ChevronDown, Check, Phone, Sparkles, Radio, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Language } from '../services/i18nService';
 
@@ -9,9 +9,10 @@ interface Props {
   currentLang: Language;
   onLanguageChange: (lang: Language) => void;
   onOpenChat: () => void;
+  syncStatus?: 'syncing' | 'synced' | 'local' | 'error';
 }
 
-const Navbar: React.FC<Props> = ({ onToggleSidebar, currentLang, onLanguageChange, onOpenChat }) => {
+const Navbar: React.FC<Props> = ({ onToggleSidebar, currentLang, onLanguageChange, onOpenChat, syncStatus = 'synced' }) => {
   const [isLangOpen, setIsLangOpen] = useState(false);
 
   const languages = [
@@ -41,6 +42,21 @@ const Navbar: React.FC<Props> = ({ onToggleSidebar, currentLang, onLanguageChang
               Trazot
             </span>
           </Link>
+
+          {/* Detailed Sync Pulse Indicator */}
+          <div className="hidden md:flex items-center gap-2 ml-4 px-3 py-1 bg-gray-50 rounded-full border border-gray-100">
+            <div className={`w-2 h-2 rounded-full ${
+              syncStatus === 'syncing' ? 'bg-amber-500 animate-pulse' : 
+              syncStatus === 'synced' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' :
+              syncStatus === 'error' ? 'bg-red-500' : 'bg-gray-400'
+            }`} />
+            <span className="text-[8px] font-black uppercase tracking-widest text-emerald-900/40">
+              {syncStatus === 'syncing' ? 'Syncing Node...' : 
+               syncStatus === 'synced' ? 'Global Node Active' : 
+               syncStatus === 'error' ? 'Connection Error' : 'Offline Mode'}
+            </span>
+            {syncStatus === 'error' && <AlertCircle className="w-3 h-3 text-red-400" />}
+          </div>
         </div>
 
         <div className="flex items-center gap-2 md:gap-4">

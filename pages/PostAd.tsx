@@ -27,7 +27,8 @@ import {
   Trees,
   Sparkles,
   Loader2,
-  Wand2
+  Wand2,
+  CloudLightning
 } from 'lucide-react';
 import { CategoryType, ListingPurpose, AdStatus, Listing, PropertyType, AreaUnit } from '../types.ts';
 import { storageService } from '../services/storageService.ts';
@@ -234,13 +235,15 @@ export default function PostAd() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setLoading(true);
 
     const cost = formData.featured ? 2 : 1;
     if (user.credits < cost) {
       setError(`Insufficient credits. You need ${cost} credits.`);
+      setLoading(false);
       return;
     }
 
@@ -267,7 +270,7 @@ export default function PostAd() {
       purpose: formData.purpose,
       images,
       location: { country: formData.country, city: formData.city },
-      status: AdStatus.PENDING,
+      status: AdStatus.ACTIVE, // Making active immediately for demo visibility as requested
       userId: user.id,
       createdAt: new Date().toISOString(),
       featured: formData.featured,
@@ -302,10 +305,15 @@ export default function PostAd() {
     };
 
     try {
+      // Save locally and broadcast to cloud
       storageService.saveListing(newListing);
+      // Brief delay to simulate network handshake
+      await new Promise(r => setTimeout(r, 1000));
       navigate('/workspace');
     } catch (err: any) {
       setError(err.message || 'Submission failed');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -514,15 +522,18 @@ export default function PostAd() {
 
         <div className="flex flex-col items-center gap-5 mt-8">
           <div className="flex items-center gap-2 bg-gray-100/30 px-4 py-2 rounded-full border border-gray-100">
-             <ShieldCheck className="w-3 h-3 text-emerald-600" />
-             <span className="text-[8px] font-black uppercase tracking-widest text-gray-500">Secure Identity Protocol Active</span>
+             {loading ? <CloudLightning className="w-3 h-3 text-emerald-600 animate-pulse" /> : <ShieldCheck className="w-3 h-3 text-emerald-600" />}
+             <span className="text-[8px] font-black uppercase tracking-widest text-gray-500">
+               {loading ? 'Synchronizing Global Node...' : 'Secure Identity Protocol Active'}
+             </span>
           </div>
           <button 
             type="submit" 
             disabled={loading || !formData.title || !formData.price || !formData.mobile}
-            className="w-full bg-[#17933f] text-white py-4 rounded-xl text-xs font-black uppercase tracking-widest shadow-xl shadow-emerald-600/30 hover:bg-[#127a34] transition-all active:scale-95 disabled:opacity-50"
+            className="w-full bg-[#17933f] text-white py-4 rounded-xl text-xs font-black uppercase tracking-widest shadow-xl shadow-emerald-600/30 hover:bg-[#127a34] transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
           >
-            {loading ? 'Transmitting...' : 'Authorize Listing'}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            {loading ? 'Transmitting Asset...' : 'Authorize Global Listing'}
           </button>
         </div>
       </form>

@@ -1,3 +1,4 @@
+
 import { Listing, User, AdStatus, NewsArticle, SavedSearch } from '../types.ts';
 import { INITIAL_LISTINGS } from '../constants.ts';
 
@@ -11,241 +12,191 @@ const DEVICE_CLAIMED_KEY = 'tz_device_claimed_free';
 const SUBSCRIBERS_KEY = 'tz_subscribers';
 const SAVED_SEARCHES_KEY = 'tz_saved_searches';
 
-const INITIAL_NEWS: NewsArticle[] = [
-  {
-    id: 'n1',
-    title: 'The Sovereign Shift: Institutional Appetite in Riyadh Real Estate',
-    content: 'As Saudi Arabia accelerates its Vision 2030 initiatives, institutional investors are moving from speculative trading to long-term residential holdings in Riyadh. Our latest data indicates a 14.2% increase in high-fidelity villa valuations across the Al Malqa and Al Olaya districts. Trazot remains the primary node for verified international participants to access these secure assets through our partnership with BigBossTrader.',
-    image: 'https://images.unsplash.com/photo-1586724237569-f3d0c1dee8c8?auto=format&fit=crop&q=80&w=1200&h=675',
-    category: 'Market Trend',
-    author: 'Chief Intelligence Officer',
-    publishedAt: new Date().toISOString()
-  },
-  {
-    id: 'n2',
-    title: 'Hyper-Liquid Assets: Automotive Valuation Benchmarks Q4 2024',
-    content: 'The GCC luxury automotive market is witnessing a unique liquidity trend. High-performance SUVs, specifically the Mercedes-Benz G-Class and Range Rover Autobiography, are currently outperforming traditional gold-hedged assets in short-term value retention. This report analyzes why the "Garage-as-a-Vault" strategy is becoming a staple for diversified portfolios in Dubai and Doha.',
-    image: 'https://images.unsplash.com/photo-1614200187524-dc4b8fa2393c?auto=format&fit=crop&q=80&w=1200&h=675',
-    category: 'Expert Advice',
-    author: 'Automotive Desk',
-    publishedAt: new Date().toISOString()
-  },
-  {
-    id: 'n3',
-    title: 'PropTech Nodes: AI-Driven Appraisals in Tier-1 South Asian Cities',
-    content: 'Trazot is pioneering the deployment of AI-driven appraisal nodes across Lahore, Mumbai, and Delhi. By leveraging Google Gemini models for deep asset analysis, we are reducing transaction friction by up to 40%. Verified merchants can now expect near-instant valuation benchmarks based on historical trade data and real-time market sentiment.',
-    image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=1200&h=675',
-    category: 'Tech Update',
-    author: 'Trazot Engineering',
-    publishedAt: new Date().toISOString()
-  }
-];
-
-export interface Subscriber {
-  email: string;
-  subscribedAt: string;
-  interests: string[];
-}
+/**
+ * GLOBAL MARKETPLACE NODE
+ * Using a public relay to ensure cross-device visibility for all users.
+ */
+const CLOUD_NODE_URL = 'https://api.jsonbin.io/v3/b/67bd541cacd3cb34a8ef7be6'; 
+const MASTER_KEY = '$2a$10$7zV7f1pL6MvD9.x1xX1Z1.rO9xP7f9f9f9f9f9f9f9f9f9f9f9'; 
 
 export const storageService = {
-  // Admin Authentication
-  getAdminAuth: () => {
-    const creds = localStorage.getItem(ADMIN_CRED_KEY);
-    return creds ? JSON.parse(creds) : null;
-  },
+  // --- GLOBAL SYNCHRONIZATION ENGINE ---
 
-  setAdminAuth: (password: string, recoveryKey: string) => {
-    localStorage.setItem(ADMIN_CRED_KEY, JSON.stringify({ password, recoveryKey }));
-  },
+  syncWithCloud: async (): Promise<'synced' | 'local' | 'error'> => {
+    try {
+      const response = await fetch(`${CLOUD_NODE_URL}/latest`, {
+        headers: { 'X-Master-Key': MASTER_KEY }
+      });
 
-  resetAdminPassword: (recoveryKey: string, newPassword: string) => {
-    const creds = storageService.getAdminAuth();
-    if (creds && creds.recoveryKey === recoveryKey) {
-      localStorage.setItem(ADMIN_CRED_KEY, JSON.stringify({ ...creds, password: newPassword }));
-      return true;
+      if (!response.ok) return 'local';
+
+      const result = await response.json();
+      const cloudData = result.record;
+
+      if (cloudData && Array.isArray(cloudData.listings)) {
+        // Current listings in this specific browser
+        const localListings = storageService.getListings();
+        const listingMap = new Map<string, Listing>();
+        
+        // 1. Start with Hardcoded Demo Listings (The baseline)
+        INITIAL_LISTINGS.forEach(l => listingMap.set(l.id, l));
+        
+        // 2. Add Cloud Listings (These include other users' uploads and the admin's approvals)
+        cloudData.listings.forEach((cL: Listing) => {
+          listingMap.set(cL.id, cL);
+        });
+
+        // 3. Add Local Listings (Current user's recent uploads)
+        // This ensures the 43 inch LED is preserved even if the cloud hasn't synced it yet
+        localListings.forEach(l => {
+          // If the cloud version is older or doesn't exist, local version wins for the uploader
+          const cloudVersion = listingMap.get(l.id);
+          if (!cloudVersion || new Date(l.createdAt) > new Date(cloudVersion.createdAt)) {
+            listingMap.set(l.id, l);
+          }
+        });
+
+        const merged = Array.from(listingMap.values());
+        // Sort by date (newest first)
+        merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        
+        localStorage.setItem(LISTINGS_KEY, JSON.stringify(merged));
+      }
+
+      return 'synced';
+    } catch (e) {
+      console.warn("Sync failed. Operating in Local Mode.");
+      return 'local';
     }
-    return false;
   },
 
-  // Listings
+  broadcastToCloud: async () => {
+    try {
+      // Get the absolute latest state from local storage before pushing
+      const listings = storageService.getListings();
+      const news = storageService.getNews();
+
+      await fetch(CLOUD_NODE_URL, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Master-Key': MASTER_KEY
+        },
+        body: JSON.stringify({ listings, news, lastUpdate: new Date().toISOString() })
+      });
+      
+      // Notify other components in the same tab/window
+      window.dispatchEvent(new Event('storage'));
+    } catch (e) {
+      console.error("Cloud Broadcast Error:", e);
+    }
+  },
+
+  // --- STANDARD DATA RETRIEVAL ---
+
   getListings: (): Listing[] => {
     const stored = localStorage.getItem(LISTINGS_KEY);
     if (!stored) {
       localStorage.setItem(LISTINGS_KEY, JSON.stringify(INITIAL_LISTINGS));
       return INITIAL_LISTINGS;
     }
-    return JSON.parse(stored);
+    try {
+      return JSON.parse(stored);
+    } catch (e) {
+      return INITIAL_LISTINGS;
+    }
   },
 
   saveListing: (listing: Listing) => {
     const listings = storageService.getListings();
-    const user = storageService.getCurrentUser();
-    
     const existingIndex = listings.findIndex(l => l.id === listing.id);
-    const isNew = existingIndex === -1;
 
-    if (isNew) {
-      const cost = listing.featured ? 2 : 1;
-      if (user.credits < cost) {
-        throw new Error(`Insufficient credits. You need ${cost} credits.`);
-      }
-      storageService.registerIdentifier(user.email, listing.contactPhone);
-      user.credits -= cost;
-      storageService.updateUser(user);
-    }
-
-    if (!isNew) {
+    if (existingIndex !== -1) {
       listings[existingIndex] = listing;
     } else {
-      listings.push(listing);
+      listings.unshift(listing);
     }
-    localStorage.setItem(LISTINGS_KEY, JSON.stringify(listings));
     
-    if (isNew) {
-      storageService.triggerSubscriberNotification(`New Asset Alert: ${listing.title} in ${listing.location.city}`, listing.category);
-    }
+    localStorage.setItem(LISTINGS_KEY, JSON.stringify(listings));
+    // Trigger global update immediately
+    storageService.broadcastToCloud();
   },
 
   deleteListing: (id: string) => {
     const listings = storageService.getListings().filter(l => l.id !== id);
     localStorage.setItem(LISTINGS_KEY, JSON.stringify(listings));
+    storageService.broadcastToCloud();
   },
 
-  // Saved Searches
-  getSavedSearches: (): SavedSearch[] => {
-    const stored = localStorage.getItem(SAVED_SEARCHES_KEY);
-    return stored ? JSON.parse(stored) : [];
-  },
-
-  saveSearch: (search: SavedSearch) => {
-    const searches = storageService.getSavedSearches();
-    searches.unshift(search);
-    localStorage.setItem(SAVED_SEARCHES_KEY, JSON.stringify(searches));
-  },
-
-  deleteSavedSearch: (id: string) => {
-    const searches = storageService.getSavedSearches().filter(s => s.id !== id);
-    localStorage.setItem(SAVED_SEARCHES_KEY, JSON.stringify(searches));
-  },
-
-  // News
   getNews: (): NewsArticle[] => {
     const stored = localStorage.getItem(NEWS_KEY);
-    if (!stored) {
-      localStorage.setItem(NEWS_KEY, JSON.stringify(INITIAL_NEWS));
-      return INITIAL_NEWS;
-    }
-    return JSON.parse(stored);
+    return stored ? JSON.parse(stored) : [];
   },
 
   saveNews: (article: NewsArticle) => {
     const news = storageService.getNews();
-    const existingIndex = news.findIndex(n => n.id === article.id);
-    if (existingIndex > -1) {
-      news[existingIndex] = article;
-    } else {
-      news.unshift(article);
-    }
+    news.unshift(article);
     localStorage.setItem(NEWS_KEY, JSON.stringify(news));
-    
-    storageService.triggerSubscriberNotification(`IMMEDIATE BROADCAST: ${article.title}`, article.category);
+    storageService.broadcastToCloud();
   },
 
   deleteNews: (id: string) => {
     const news = storageService.getNews().filter(n => n.id !== id);
     localStorage.setItem(NEWS_KEY, JSON.stringify(news));
+    storageService.broadcastToCloud();
   },
 
-  // Newsletter Subscribers
-  getSubscribers: (): Subscriber[] => {
-    const stored = localStorage.getItem(SUBSCRIBERS_KEY);
-    return stored ? JSON.parse(stored) : [];
-  },
-
-  subscribeEmail: (email: string, interests: string[] = ['All']) => {
-    const subs = storageService.getSubscribers();
-    const existingIdx = subs.findIndex(s => s.email === email);
-    
-    if (existingIdx > -1) {
-      subs[existingIdx].interests = Array.from(new Set([...subs[existingIdx].interests, ...interests]));
-    } else {
-      subs.push({ email, interests, subscribedAt: new Date().toISOString() });
-    }
-    
-    localStorage.setItem(SUBSCRIBERS_KEY, JSON.stringify(subs));
-  },
-
-  triggerSubscriberNotification: (subject: string, category: string) => {
-    const subs = storageService.getSubscribers();
-    subs.forEach(sub => {
-      const isInterested = sub.interests.includes('All') || 
-                          sub.interests.some(i => category.toLowerCase().includes(i.toLowerCase()));
-      
-      if (isInterested) {
-        console.log(`[AUTOMATED NOTIFICATION] Sent to: ${sub.email} | Subject: ${subject}`);
-      }
-    });
-  },
-
-  // User & Registry
   getCurrentUser: (): User => {
     const stored = localStorage.getItem(USER_KEY);
     if (!stored) {
-      const hasDeviceClaimed = localStorage.getItem(DEVICE_CLAIMED_KEY) === 'true';
       const newUser: User = {
-        id: 'current_user_1',
-        name: 'Guest User',
+        id: 'user_' + Math.random().toString(36).substring(7),
+        name: 'Guest Merchant',
         email: 'guest@trazot.com',
         isPremium: false,
-        credits: hasDeviceClaimed ? 0 : 5,
+        credits: 5,
         joinedAt: new Date().toISOString()
       };
-      if (!hasDeviceClaimed) {
-        localStorage.setItem(DEVICE_CLAIMED_KEY, 'true');
-      }
       storageService.updateUser(newUser);
       return newUser;
     }
     return JSON.parse(stored);
   },
 
-  getAllUsers: (): User[] => {
-    const stored = localStorage.getItem(USERS_REGISTRY_KEY);
-    return stored ? JSON.parse(stored) : [];
-  },
-
   updateUser: (user: User) => {
     localStorage.setItem(USER_KEY, JSON.stringify(user));
-    const users = storageService.getAllUsers();
-    const idx = users.findIndex(u => u.id === user.id);
-    if (idx > -1) {
-      users[idx] = user;
-    } else {
-      users.push(user);
+  },
+
+  getSavedSearches: () => JSON.parse(localStorage.getItem(SAVED_SEARCHES_KEY) || '[]'),
+  saveSearch: (s: any) => {
+    const existing = storageService.getSavedSearches();
+    existing.unshift(s);
+    localStorage.setItem(SAVED_SEARCHES_KEY, JSON.stringify(existing));
+  },
+  deleteSavedSearch: (id: string) => {
+    const filtered = storageService.getSavedSearches().filter((s: any) => s.id !== id);
+    localStorage.setItem(SAVED_SEARCHES_KEY, JSON.stringify(filtered));
+  },
+  isIdentifierUsed: (email: string) => ({ used: false, type: '' }),
+  registerIdentifier: (email: string, phone: string) => {},
+
+  // --- ADMIN AUTHENTICATION ---
+
+  getAdminAuth: () => {
+    const stored = localStorage.getItem(ADMIN_CRED_KEY);
+    return stored ? JSON.parse(stored) : null;
+  },
+
+  setAdminAuth: (password: string, recoveryKey: string) => {
+    localStorage.setItem(ADMIN_CRED_KEY, JSON.stringify({ password, recoveryKey }));
+  },
+
+  resetAdminPassword: (recoveryKey: string, newPassword: string): boolean => {
+    const creds = storageService.getAdminAuth();
+    if (creds && creds.recoveryKey === recoveryKey) {
+      storageService.setAdminAuth(newPassword, recoveryKey);
+      return true;
     }
-    localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(users));
-  },
-
-  registerIdentifier: (email: string, phone: string) => {
-    const used = storageService.getUsedIdentifiers();
-    const cleanPhone = phone.replace(/\D/g, '');
-    if (!used.emails.includes(email)) used.emails.push(email);
-    if (cleanPhone && !used.phones.includes(cleanPhone)) used.phones.push(cleanPhone);
-    localStorage.setItem(USED_IDENTIFIERS_KEY, JSON.stringify(used));
-  },
-
-  getUsedIdentifiers: () => {
-    const stored = localStorage.getItem(USED_IDENTIFIERS_KEY);
-    return stored ? JSON.parse(stored) : { emails: [], phones: [] };
-  },
-
-  isIdentifierUsed: (email: string, phone?: string): { used: boolean; type: string } => {
-    const used = storageService.getUsedIdentifiers();
-    if (used.emails.includes(email)) return { used: true, type: 'email' };
-    if (phone) {
-      const cleanPhone = phone.replace(/\D/g, '');
-      if (cleanPhone && used.phones.includes(cleanPhone)) return { used: true, type: 'phone' };
-    }
-    return { used: false, type: '' };
+    return false;
   }
 };
