@@ -143,8 +143,10 @@ export const storageService = {
   getCurrentUser: (): User => {
     const stored = localStorage.getItem(USER_KEY);
     if (!stored) {
-      const newUser: User = {
-        id: 'user_' + Math.random().toString(36).substring(7),
+      // Return a temporary local guest object. 
+      // CRITICAL: Do NOT call storageService.updateUser here as it pushes to the global registry.
+      return {
+        id: 'guest_' + Math.random().toString(36).substring(7),
         name: 'Guest Merchant',
         email: 'guest@trazot.com',
         isPremium: false,
@@ -152,30 +154,32 @@ export const storageService = {
         credits: 5,
         joinedAt: new Date().toISOString()
       };
-      storageService.updateUser(newUser);
-      return newUser;
     }
     return JSON.parse(stored);
   },
 
   getUsers: (): User[] => {
     const stored = localStorage.getItem(USERS_REGISTRY_KEY);
-    return stored ? JSON.parse(stored) : [];
+    // Filter out any leaked placeholder data from the registry view
+    const users = stored ? JSON.parse(stored) : [];
+    return users.filter((u: User) => u.email !== 'merchant@gmail.com' && u.email !== 'guest@trazot.com');
   },
 
   updateUser: (user: User) => {
     localStorage.setItem(USER_KEY, JSON.stringify(user));
     
-    // Maintain registry
-    const users = storageService.getUsers();
-    const idx = users.findIndex(u => u.id === user.id);
-    if (idx !== -1) {
-      users[idx] = user;
-    } else {
-      users.push(user);
+    // Only register identified users (not the placeholder guest) in the global registry
+    if (user.email !== 'guest@trazot.com') {
+      const users = storageService.getUsers();
+      const idx = users.findIndex(u => u.id === user.id);
+      if (idx !== -1) {
+        users[idx] = user;
+      } else {
+        users.push(user);
+      }
+      localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(users));
+      storageService.broadcastToCloud();
     }
-    localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(users));
-    storageService.broadcastToCloud();
   },
 
   getSavedSearches: () => JSON.parse(localStorage.getItem(SAVED_SEARCHES_KEY) || '[]'),
