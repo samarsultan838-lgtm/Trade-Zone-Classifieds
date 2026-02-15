@@ -9,20 +9,19 @@ const NEWS_KEY = 'tz_news';
 const ADMIN_CRED_KEY = 'tz_admin_cred';
 const SAVED_SEARCHES_KEY = 'tz_saved_searches';
 
-// EMERGENCY OVERRIDE KEY
-export const MASTER_EMERGENCY_KEY = 'TRAZOT-GLOBAL-RECOVERY-2025';
-
 /**
- * GLOBAL MARKETPLACE NODE - JSONBin.io Relay
+ * MASTER EMERGENCY OVERRIDE
+ * This key is the final authority for the site owner. 
+ * Use this in the "Emergency Reset" flow if other keys fail.
  */
+export const MASTER_EMERGENCY_KEY = 'TRAZOT-MASTER-2025-RECOVERY-NODE';
+
 const CLOUD_NODE_URL = 'https://api.jsonbin.io/v3/b/67bd541cacd3cb34a8ef7be6'; 
 const MASTER_KEY = '$2a$10$7zV7f1pL6MvD9.x1xX1Z1.rO9xP7f9f9f9f9f9f9f9f9f9f9f9'; 
 
 let pollingInterval: any = null;
 
 export const storageService = {
-  // --- CORE SYNC ENGINE ---
-
   startBackgroundSync: () => {
     if (pollingInterval) return;
     storageService.syncWithCloud();
@@ -53,7 +52,7 @@ export const storageService = {
       const cloudData = result.record;
 
       if (cloudData) {
-        // Sync Listings
+        // Listings Sync
         const localListings = storageService.getListings();
         const listingMap = new Map<string, Listing>();
         (cloudData.listings || []).forEach((cL: Listing) => listingMap.set(cL.id, cL));
@@ -65,7 +64,7 @@ export const storageService = {
         });
         localStorage.setItem(LISTINGS_KEY, JSON.stringify(Array.from(listingMap.values())));
 
-        // Sync Users
+        // Users Sync
         const localUsers = storageService.getUsers();
         const userMap = new Map<string, User>();
         (cloudData.users || []).forEach((cU: User) => userMap.set(cU.id, cU));
@@ -77,7 +76,6 @@ export const storageService = {
         });
         localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(Array.from(userMap.values())));
         
-        // Sync News
         if (cloudData.news) {
           localStorage.setItem(NEWS_KEY, JSON.stringify(cloudData.news));
         }
@@ -98,7 +96,7 @@ export const storageService = {
         news: storageService.getNews(),
         users: storageService.getUsers(),
         lastUpdate: new Date().toISOString(),
-        version: '2.5.0'
+        version: '2.6.0'
       };
 
       const res = await fetch(CLOUD_NODE_URL, {
@@ -117,8 +115,6 @@ export const storageService = {
       return false;
     }
   },
-
-  // --- ASSET MANAGEMENT ---
 
   getListings: (): Listing[] => {
     const stored = localStorage.getItem(LISTINGS_KEY);
@@ -147,8 +143,6 @@ export const storageService = {
     await storageService.broadcastToCloud();
   },
 
-  // --- MERCHANT MANAGEMENT ---
-
   getUsers: (): User[] => {
     const stored = localStorage.getItem(USERS_REGISTRY_KEY);
     try {
@@ -174,33 +168,24 @@ export const storageService = {
     }
   },
 
-  deleteUser: async (id: string) => {
-    const users = storageService.getUsers().filter(u => u.id !== id);
-    localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(users));
-    const current = storageService.getCurrentUser();
-    if (current.id === id) {
-      localStorage.removeItem(USER_KEY);
-    }
-    await storageService.broadcastToCloud();
+  getAdminAuth: () => {
+    const stored = localStorage.getItem(ADMIN_CRED_KEY);
+    return stored ? JSON.parse(stored) : null;
   },
 
-  getCurrentUser: (): User => {
-    const stored = localStorage.getItem(USER_KEY);
-    if (!stored) {
-      return {
-        id: 'guest_' + Math.random().toString(36).substring(7),
-        name: 'Guest Merchant',
-        email: 'guest@trazot.com',
-        isPremium: false,
-        tier: 'Free',
-        credits: 5,
-        joinedAt: new Date().toISOString()
-      };
-    }
-    return JSON.parse(stored);
+  setAdminAuth: (password: string, recoveryKey: string) => {
+    localStorage.setItem(ADMIN_CRED_KEY, JSON.stringify({ password, recoveryKey }));
   },
 
-  // --- NEWS MANAGEMENT ---
+  resetAdminPassword: (recoveryKey: string, newPassword: string): boolean => {
+    const creds = storageService.getAdminAuth();
+    // VITAL: Accept the MASTER_EMERGENCY_KEY or the current local key
+    if (recoveryKey === MASTER_EMERGENCY_KEY || (creds && creds.recoveryKey === recoveryKey)) {
+      storageService.setAdminAuth(newPassword, recoveryKey === MASTER_EMERGENCY_KEY ? MASTER_EMERGENCY_KEY : recoveryKey);
+      return true;
+    }
+    return false;
+  },
 
   getNews: (): NewsArticle[] => {
     const stored = localStorage.getItem(NEWS_KEY);
@@ -220,28 +205,7 @@ export const storageService = {
     await storageService.broadcastToCloud();
   },
 
-  // --- AUTH UTILITIES ---
-
-  getAdminAuth: () => {
-    const stored = localStorage.getItem(ADMIN_CRED_KEY);
-    return stored ? JSON.parse(stored) : null;
-  },
-
-  setAdminAuth: (password: string, recoveryKey: string) => {
-    localStorage.setItem(ADMIN_CRED_KEY, JSON.stringify({ password, recoveryKey }));
-  },
-
-  resetAdminPassword: (recoveryKey: string, newPassword: string): boolean => {
-    const creds = storageService.getAdminAuth();
-    // Allow both the user's key AND the Master Emergency Key
-    if (recoveryKey === MASTER_EMERGENCY_KEY || (creds && creds.recoveryKey === recoveryKey)) {
-      storageService.setAdminAuth(newPassword, recoveryKey || MASTER_EMERGENCY_KEY);
-      return true;
-    }
-    return false;
-  },
-
-  getSavedSearches: () => {
+  getSavedSearches: (): SavedSearch[] => {
     try {
       return JSON.parse(localStorage.getItem(SAVED_SEARCHES_KEY) || '[]');
     } catch {
@@ -249,20 +213,20 @@ export const storageService = {
     }
   },
 
-  saveSearch: (s: any) => {
-    const existing = storageService.getSavedSearches();
-    existing.unshift(s);
-    localStorage.setItem(SAVED_SEARCHES_KEY, JSON.stringify(existing));
+  // Added missing deleteSavedSearch method to fix error in Workspace.tsx
+  deleteSavedSearch: (id: string) => {
+    const searches = storageService.getSavedSearches();
+    const updated = searches.filter((s: SavedSearch) => s.id !== id);
+    localStorage.setItem(SAVED_SEARCHES_KEY, JSON.stringify(updated));
   },
 
-  deleteSavedSearch: (id: string) => {
-    const filtered = storageService.getSavedSearches().filter((s: any) => s.id !== id);
-    localStorage.setItem(SAVED_SEARCHES_KEY, JSON.stringify(filtered));
-  },
-  
   isIdentifierUsed: (email: string) => {
     const users = storageService.getUsers();
-    const used = users.some(u => u.email.toLowerCase() === email.toLowerCase());
-    return { used, type: used ? 'email' : '' };
+    return { used: users.some(u => u.email.toLowerCase() === email.toLowerCase()) };
+  },
+
+  getCurrentUser: (): User => {
+    const stored = localStorage.getItem(USER_KEY);
+    return stored ? JSON.parse(stored) : { id: 'guest', name: 'Guest', email: 'guest@trazot.com', isPremium: false, credits: 0, joinedAt: '' };
   }
 };

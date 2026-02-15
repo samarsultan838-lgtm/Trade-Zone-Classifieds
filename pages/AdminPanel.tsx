@@ -1,62 +1,37 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ShieldCheck, 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
   Lock,
-  Newspaper,
-  Plus,
-  Trash2,
-  X,
   RefreshCw,
   LogOut,
-  Eye,
-  Layers,
-  Users,
-  BarChart3,
   Fingerprint,
   Loader2,
-  TrendingUp,
-  PieChart as PieChartIcon,
-  Activity,
-  DollarSign,
+  Key,
+  AlertCircle,
+  ShieldAlert,
   ChevronRight,
-  Zap,
-  Key
+  User,
+  Activity,
+  Layers,
+  Users as UsersIcon,
+  DollarSign
 } from 'lucide-react';
-import { 
-  PieChart, 
-  Pie, 
-  Cell, 
-  ResponsiveContainer, 
-  Tooltip,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid
-} from 'recharts';
 import { storageService, MASTER_EMERGENCY_KEY } from '../services/storageService.ts';
-import { Listing, AdStatus, NewsArticle, User } from '../types.ts';
-import { Link } from 'react-router-dom';
+import { Listing, NewsArticle, User as UserType } from '../types.ts';
 
 type AdminViewState = 'login' | 'setup' | 'forgot' | 'dashboard';
 
 const AdminPanel: React.FC = () => {
   const [view, setView] = useState<AdminViewState>('login');
   const [password, setPassword] = useState('');
-  const [recoveryKey, setRecoveryKey] = useState('');
-  const [newPassword, setNewPassword] = useState('');
+  const [recoveryInput, setRecoveryInput] = useState('');
+  const [newPassInput, setNewPassInput] = useState('');
   const [isAuthorizing, setIsAuthorizing] = useState(false);
   
-  const [activeTab, setActiveTab] = useState<'overview' | 'listings' | 'users' | 'news'>('overview');
   const [listings, setListings] = useState<Listing[]>([]);
+  const [users, setUsers] = useState<UserType[]>([]);
   const [news, setNews] = useState<NewsArticle[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     const creds = storageService.getAdminAuth();
@@ -66,74 +41,65 @@ const AdminPanel: React.FC = () => {
 
   const initializeDashboard = () => {
     setListings(storageService.getListings());
-    setNews(storageService.getNews());
     setUsers(storageService.getUsers());
+    setNews(storageService.getNews());
     setView('dashboard');
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsAuthorizing(true);
-    await new Promise(r => setTimeout(r, 600));
+    // Simulate biometric/security check
+    await new Promise(r => setTimeout(r, 800));
+    
     const creds = storageService.getAdminAuth();
-    if (creds && creds.password === password) {
+    if (creds && (creds.password === password)) {
       sessionStorage.setItem('tz_admin_session', 'true');
       initializeDashboard();
     } else {
-      alert('Invalid security credentials.');
+      alert('Security violation: Authorization key mismatch.');
     }
     setIsAuthorizing(false);
   };
 
-  const handleReset = (e: React.FormEvent) => {
+  const handleEmergencyReset = (e: React.FormEvent) => {
     e.preventDefault();
-    const success = storageService.resetAdminPassword(recoveryKey, newPassword);
+    const success = storageService.resetAdminPassword(recoveryInput, newPassInput);
     if (success) {
-      alert('Credentials reset successful. Please login.');
+      alert('Master Recovery Successful. System access restored.');
       setView('login');
       setPassword('');
     } else {
-      alert('Invalid Recovery Key.');
+      alert('Invalid Recovery Signature. Access denied.');
     }
   };
 
   const handleLogout = () => {
     sessionStorage.removeItem('tz_admin_session');
     setView('login');
-    setPassword('');
   };
-
-  const handleSync = async () => {
-    setIsSyncing(true);
-    await storageService.syncWithCloud();
-    initializeDashboard();
-    setIsSyncing(false);
-  };
-
-  const marketMixData = useMemo(() => {
-    const counts = listings.reduce((acc, l) => {
-      acc[l.category] = (acc[l.category] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-    const colors = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6'];
-    return Object.keys(counts).map((key, i) => ({
-      name: key, value: counts[key], color: colors[i % colors.length]
-    }));
-  }, [listings]);
 
   if (view === 'setup') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#01110a] px-6">
-        <div className="bg-[#051c12] border border-emerald-900/50 p-10 rounded-[48px] max-w-md w-full text-center animate-in zoom-in-95">
-          <ShieldCheck className="w-16 h-16 text-emerald-400 mx-auto mb-6" />
-          <h1 className="text-2xl font-serif-italic text-white mb-6">Master Setup</h1>
+      <div className="min-h-screen flex items-center justify-center bg-[#010c08] p-6">
+        <div className="bg-[#041a12] border border-emerald-900/30 p-10 rounded-[48px] max-w-md w-full text-center shadow-2xl animate-in zoom-in-95">
+          <ShieldAlert className="w-16 h-16 text-emerald-400 mx-auto mb-6 animate-pulse" />
+          <h1 className="text-2xl font-serif-italic text-white mb-4">Initialize Root Access</h1>
+          <p className="text-emerald-500/40 text-[10px] font-black uppercase tracking-widest mb-8">First Time Site Owner Verification</p>
           <form onSubmit={(e) => { e.preventDefault(); storageService.setAdminAuth(password, MASTER_EMERGENCY_KEY); initializeDashboard(); }} className="space-y-4">
-            <input type="password" placeholder="Define Admin Password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-emerald-950/50 border border-emerald-900/50 rounded-2xl py-4 text-center text-white outline-none" />
-            <div className="p-4 bg-emerald-950/50 rounded-2xl border border-emerald-500/10 mb-4">
-              <p className="text-[10px] font-black uppercase text-emerald-500 mb-1">Global Recovery Key</p>
-              <p className="text-sm font-black text-white tracking-widest">{MASTER_EMERGENCY_KEY}</p>
+            <input 
+              type="password" 
+              required
+              placeholder="Define Root Password" 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-[#02100a] border border-emerald-900/50 rounded-2xl py-4 px-6 text-white text-center outline-none focus:border-emerald-500 transition-all"
+            />
+            <div className="p-4 bg-emerald-900/10 rounded-2xl border border-emerald-500/10">
+              <span className="block text-[8px] font-black text-emerald-500 uppercase mb-1">Emergency Master Key</span>
+              <span className="block text-sm font-black text-white tracking-widest">{MASTER_EMERGENCY_KEY}</span>
             </div>
-            <button className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-[10px]">Initialize Vault</button>
+            <button className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl">Initialize Vault</button>
           </form>
         </div>
       </div>
@@ -142,15 +108,30 @@ const AdminPanel: React.FC = () => {
 
   if (view === 'forgot') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#01110a] px-6">
-        <div className="bg-[#051c12] border border-emerald-900/50 p-10 rounded-[48px] max-w-md w-full text-center animate-in zoom-in-95">
-          <RefreshCw className="w-16 h-16 text-yellow-500 mx-auto mb-6" />
-          <h1 className="text-2xl font-serif-italic text-white mb-6">Emergency Reset</h1>
-          <form onSubmit={handleReset} className="space-y-4">
-            <input type="text" placeholder="Recovery Key" required value={recoveryKey} onChange={(e) => setRecoveryKey(e.target.value)} className="w-full bg-emerald-950/50 border border-emerald-900/50 rounded-2xl py-4 text-center text-white outline-none" />
-            <input type="password" placeholder="New Password" required value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full bg-emerald-950/50 border border-emerald-900/50 rounded-2xl py-4 text-center text-white outline-none" />
-            <button className="w-full bg-yellow-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-[10px]">Authorize Reset</button>
-            <button type="button" onClick={() => setView('login')} className="text-emerald-500/40 text-[9px] font-black uppercase tracking-widest mt-4">Back to Login</button>
+      <div className="min-h-screen flex items-center justify-center bg-[#010c08] p-6">
+        <div className="bg-[#041a12] border border-emerald-900/30 p-10 rounded-[48px] max-w-md w-full text-center shadow-2xl animate-in fade-in slide-in-from-bottom-4">
+          <Key className="w-16 h-16 text-yellow-500 mx-auto mb-6" />
+          <h1 className="text-2xl font-serif-italic text-white mb-2">Emergency Override</h1>
+          <p className="text-yellow-500/40 text-[10px] font-black uppercase tracking-widest mb-8">System Recovery Protocol</p>
+          <form onSubmit={handleEmergencyReset} className="space-y-4">
+            <input 
+              type="text" 
+              required
+              placeholder="Master Emergency Key" 
+              value={recoveryInput}
+              onChange={(e) => setRecoveryInput(e.target.value)}
+              className="w-full bg-[#02100a] border border-emerald-900/50 rounded-2xl py-4 px-6 text-white text-center outline-none focus:border-yellow-500 transition-all font-mono"
+            />
+            <input 
+              type="password" 
+              required
+              placeholder="Define New Admin Password" 
+              value={newPassInput}
+              onChange={(e) => setNewPassInput(e.target.value)}
+              className="w-full bg-[#02100a] border border-emerald-900/50 rounded-2xl py-4 px-6 text-white text-center outline-none focus:border-emerald-500 transition-all"
+            />
+            <button className="w-full bg-yellow-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl">Authorize System Reset</button>
+            <button type="button" onClick={() => setView('login')} className="text-gray-500 text-[9px] font-black uppercase tracking-widest mt-4">Cancel Recovery</button>
           </form>
         </div>
       </div>
@@ -159,18 +140,25 @@ const AdminPanel: React.FC = () => {
 
   if (view === 'login') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#01110a] px-6">
-        <div className="bg-[#051c12] border border-emerald-900/50 p-10 rounded-[48px] max-w-md w-full text-center animate-in zoom-in-95">
-          <Fingerprint className="w-16 h-16 text-emerald-400 mx-auto mb-6 animate-pulse" />
-          <h1 className="text-2xl font-serif-italic text-white mb-2">Vault Entry</h1>
-          <p className="text-emerald-500/40 text-[9px] font-black uppercase tracking-widest mb-8">Admin Auth Required</p>
+      <div className="min-h-screen flex items-center justify-center bg-[#010c08] p-6">
+        <div className="bg-[#041a12] border border-emerald-900/30 p-10 rounded-[48px] max-w-md w-full text-center shadow-2xl animate-in zoom-in-95">
+          <Fingerprint className="w-16 h-16 text-emerald-400 mx-auto mb-6" />
+          <h1 className="text-2xl font-serif-italic text-white mb-2">Owner Entry</h1>
+          <p className="text-emerald-500/40 text-[10px] font-black uppercase tracking-widest mb-8">Secure Session Authorization</p>
           <form onSubmit={handleLogin} className="space-y-4">
-            <input type="password" placeholder="Authorization Key" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-emerald-950/50 border border-emerald-900/50 rounded-2xl py-4 text-center text-white outline-none focus:border-emerald-500 transition-all" />
-            <button disabled={isAuthorizing} className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2">
+            <input 
+              type="password" 
+              required
+              placeholder="Master Password" 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-[#02100a] border border-emerald-900/50 rounded-2xl py-4 px-6 text-white text-center outline-none focus:border-emerald-500 transition-all"
+            />
+            <button disabled={isAuthorizing} className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl flex items-center justify-center gap-3">
               {isAuthorizing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
-              Authorize Access
+              {isAuthorizing ? 'Authorizing...' : 'Authorize Access'}
             </button>
-            <button type="button" onClick={() => setView('forgot')} className="text-emerald-500/40 text-[9px] font-black uppercase tracking-widest mt-4 hover:text-emerald-400">Emergency Reset</button>
+            <button type="button" onClick={() => setView('forgot')} className="text-emerald-500/40 text-[9px] font-black uppercase tracking-widest mt-6 hover:text-emerald-400 transition-colors">Emergency System Reset</button>
           </form>
         </div>
       </div>
@@ -179,77 +167,71 @@ const AdminPanel: React.FC = () => {
 
   return (
     <div className="max-w-[1600px] mx-auto pb-24 px-4 md:px-8 pt-8">
-      <header className="bg-white p-8 md:p-12 rounded-[48px] border border-gray-100 shadow-sm mb-8 flex flex-col md:flex-row items-center justify-between gap-8">
+      <header className="bg-white p-8 md:p-12 rounded-[48px] border border-gray-100 shadow-sm mb-12 flex flex-col md:flex-row items-center justify-between gap-8">
         <div>
-          <h1 className="text-3xl md:text-5xl font-serif-italic text-emerald-950">Command <span className="text-emerald-600">Center</span></h1>
-          <p className="text-gray-400 text-[9px] font-black uppercase tracking-widest mt-2">Institutional Admin Ledger</p>
+          <h1 className="text-3xl md:text-5xl font-serif-italic text-emerald-950">System <span className="text-emerald-600">Commander</span></h1>
+          <p className="text-gray-400 text-[10px] font-black uppercase tracking-[0.3em] mt-2">Owner Level Privilege Hub</p>
         </div>
-        <div className="flex gap-3">
-          <button onClick={handleSync} className={`p-4 bg-gray-50 rounded-2xl text-emerald-600 border border-gray-100 ${isSyncing ? 'animate-spin' : ''}`}>
-            <RefreshCw className="w-5 h-5" />
-          </button>
-          <button onClick={handleLogout} className="p-4 bg-red-50 rounded-2xl text-red-600 border border-red-100 hover:bg-red-100 transition-all">
-            <LogOut className="w-5 h-5" />
-          </button>
-        </div>
+        <button onClick={handleLogout} className="px-8 py-4 bg-red-50 text-red-600 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-3 hover:bg-red-100 transition-all border border-red-100">
+          <LogOut className="w-4 h-4" /> End Session
+        </button>
       </header>
 
-      {/* DASHBOARD GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
         {[
-          { label: 'Active Inventory', val: listings.length, icon: Layers, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-          { label: 'Merchant Nodes', val: users.length, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
-          { label: 'Cloud Latency', val: '24ms', icon: Activity, color: 'text-yellow-600', bg: 'bg-yellow-50' },
-          { label: 'Asset Valuation', val: '4.8M', icon: DollarSign, color: 'text-purple-600', bg: 'bg-purple-50' }
+          { label: 'Asset Nodes', val: listings.length, icon: Layers, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+          { label: 'Merchant Network', val: users.length, icon: UsersIcon, color: 'text-blue-600', bg: 'bg-blue-50' },
+          { label: 'System Pulse', val: '99.9%', icon: Activity, color: 'text-yellow-600', bg: 'bg-yellow-50' },
+          { label: 'Projected Value', val: '$12.4M', icon: DollarSign, color: 'text-purple-600', bg: 'bg-purple-50' }
         ].map((stat, i) => (
-          <div key={i} className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm">
-             <div className="flex items-center justify-between mb-4">
-                <div className={`w-12 h-12 ${stat.bg} ${stat.color} rounded-2xl flex items-center justify-center`}><stat.icon className="w-6 h-6" /></div>
-                <div className="text-right">
-                   <p className="text-[9px] font-black uppercase text-gray-400">{stat.label}</p>
-                   <p className="text-2xl font-black text-emerald-950">{stat.val}</p>
-                </div>
-             </div>
+          <div key={i} className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm flex items-center gap-6">
+            <div className={`w-14 h-14 ${stat.bg} ${stat.color} rounded-2xl flex items-center justify-center shrink-0`}><stat.icon className="w-7 h-7" /></div>
+            <div>
+              <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest mb-1">{stat.label}</p>
+              <p className="text-2xl font-black text-emerald-950">{stat.val}</p>
+            </div>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 bg-emerald-950 rounded-[48px] p-10 text-white min-h-[400px]">
-           <h2 className="text-xl font-bold flex items-center gap-2 mb-8"><Activity className="w-5 h-5 text-emerald-400" /> Market Intelligence</h2>
-           <div className="h-[250px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                 <BarChart data={marketMixData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                    <XAxis dataKey="name" tick={{fill: '#fff', fontSize: 10}} axisLine={false} tickLine={false} />
-                    <YAxis hide />
-                    <Tooltip cursor={{fill: 'rgba(255,255,255,0.03)'}} />
-                    <Bar dataKey="value" fill="#10b981" radius={[8, 8, 0, 0]} barSize={40} />
-                 </BarChart>
-              </ResponsiveContainer>
-           </div>
-        </div>
-        <div className="bg-white rounded-[48px] border border-gray-100 p-10">
-           <h3 className="text-xl font-bold mb-8">Asset Liquidity</h3>
-           <div className="h-[200px] w-full mb-8">
-              <ResponsiveContainer width="100%" height="100%">
-                 <PieChart>
-                    <Pie data={marketMixData} dataKey="value" innerRadius={50} outerRadius={70} paddingAngle={10}>
-                       {marketMixData.map((e, i) => <Cell key={i} fill={e.color} />)}
-                    </Pie>
-                    <Tooltip />
-                 </PieChart>
-              </ResponsiveContainer>
-           </div>
-           <div className="space-y-4">
-              {marketMixData.map((item, i) => (
-                <div key={i} className="flex justify-between items-center text-xs font-bold text-gray-500">
-                  <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full" style={{background: item.color}} /> {item.name}</span>
-                  <span className="text-emerald-950">{item.value} Units</span>
-                </div>
-              ))}
-           </div>
-        </div>
+      {/* DASHBOARD BODY */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+         <div className="bg-white rounded-[48px] p-10 border border-gray-100">
+            <h2 className="text-xl font-bold text-emerald-950 mb-8 flex items-center gap-3">
+              <ShieldCheck className="w-5 h-5 text-emerald-600" /> Security Audit
+            </h2>
+            <div className="space-y-4">
+               {[
+                 { label: 'Root Protocol', status: 'Optimal', icon: ShieldCheck },
+                 { label: 'Data Encryption', status: 'AES-256', icon: Lock },
+                 { label: 'Session Integrity', status: 'Verified', icon: Fingerprint },
+                 { label: 'Emergency Override', status: 'Armed', icon: Key }
+               ].map((item, i) => (
+                 <div key={i} className="flex items-center justify-between p-5 bg-gray-50 rounded-2xl">
+                    <div className="flex items-center gap-3">
+                      <item.icon className="w-4 h-4 text-emerald-600" />
+                      <span className="text-xs font-bold text-gray-500">{item.label}</span>
+                    </div>
+                    <span className="text-[10px] font-black uppercase text-emerald-600 tracking-widest">{item.status}</span>
+                 </div>
+               ))}
+            </div>
+         </div>
+
+         <div className="bg-emerald-950 rounded-[48px] p-10 text-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/10 blur-3xl rounded-full" />
+            <h2 className="text-xl font-bold mb-8 flex items-center gap-3">
+              <Activity className="w-5 h-5 text-emerald-400" /> Command Actions
+            </h2>
+            <div className="grid grid-cols-1 gap-4">
+               <button className="w-full py-5 bg-emerald-600 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-3 hover:bg-emerald-500 transition-all">
+                 Initialize Global Sync
+               </button>
+               <button className="w-full py-5 bg-white/5 border border-white/10 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-3 hover:bg-white/10 transition-all">
+                 Generate Site Snapshot
+               </button>
+            </div>
+         </div>
       </div>
     </div>
   );
