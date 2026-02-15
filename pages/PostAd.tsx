@@ -1,9 +1,10 @@
-import React, { useState, useCallback, useMemo } from 'react';
+
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   X,
   MapPin,
-  Tag,
+  Tag as TagIcon,
   FileText,
   Image as ImageIcon,
   Check,
@@ -28,7 +29,8 @@ import {
   Sparkles,
   Loader2,
   Wand2,
-  CloudLightning
+  CloudLightning,
+  Plus
 } from 'lucide-react';
 import { CategoryType, ListingPurpose, AdStatus, Listing, PropertyType, AreaUnit } from '../types.ts';
 import { storageService } from '../services/storageService.ts';
@@ -98,12 +100,20 @@ export default function PostAd() {
   const [loading, setLoading] = useState(false);
   const [aiOptimizing, setAiOptimizing] = useState(false);
   const [images, setImages] = useState<string[]>([]);
+  const [bestFeatures, setBestFeatures] = useState<string[]>([]);
+  const [featureInput, setFeatureInput] = useState('');
   const [error, setError] = useState<string | null>(null);
   
   const [category, setCategory] = useState<CategoryType>(CategoryType.PROPERTIES);
   const [propertyMainType, setPropertyMainType] = useState<'Home' | 'Plots' | 'Land' | 'Commercial'>('Home');
   
   const user = storageService.getCurrentUser();
+
+  useEffect(() => {
+    if (user.email === 'guest@trazot.com') {
+      navigate('/auth');
+    }
+  }, [user, navigate]);
 
   const [formData, setFormData] = useState({
     purpose: ListingPurpose.SALE,
@@ -123,7 +133,7 @@ export default function PostAd() {
     title: '',
     description: '',
     email: user.email,
-    mobile: '+92',
+    mobile: user.phone || '+92',
     landline: '+92',
     platformSelection: true,
     
@@ -194,6 +204,14 @@ export default function PostAd() {
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, ''); 
     setFormData(prev => ({ ...prev, price: value }));
+  };
+
+  const handleAddFeature = (e: React.KeyboardEvent | React.MouseEvent) => {
+    if (e.type === 'keydown' && (e as React.KeyboardEvent).key !== 'Enter') return;
+    if (featureInput.trim() && !bestFeatures.includes(featureInput.trim())) {
+      setBestFeatures([...bestFeatures, featureInput.trim()]);
+      setFeatureInput('');
+    }
   };
 
   const handleFiles = useCallback(async (files: FileList | File[]) => {
@@ -270,7 +288,7 @@ export default function PostAd() {
       purpose: formData.purpose,
       images,
       location: { country: formData.country, city: formData.city },
-      status: AdStatus.ACTIVE, // Making active immediately for demo visibility as requested
+      status: AdStatus.ACTIVE,
       userId: user.id,
       createdAt: new Date().toISOString(),
       featured: formData.featured,
@@ -280,6 +298,7 @@ export default function PostAd() {
       contactPhone: formData.mobile,
       whatsappNumber: formData.mobile,
       details: {
+        bestFeatures,
         ...(category === CategoryType.PROPERTIES ? {
           propertyType: formData.propertyType,
           area: `${formData.areaValue} ${formData.areaUnit}`,
@@ -305,9 +324,7 @@ export default function PostAd() {
     };
 
     try {
-      // Save locally and broadcast to cloud
       storageService.saveListing(newListing);
-      // Brief delay to simulate network handshake
       await new Promise(r => setTimeout(r, 1000));
       navigate('/workspace');
     } catch (err: any) {
@@ -316,6 +333,8 @@ export default function PostAd() {
       setLoading(false);
     }
   };
+
+  if (user.email === 'guest@trazot.com') return null;
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] pb-24">
@@ -348,7 +367,7 @@ export default function PostAd() {
             </div>
             
             <div className="space-y-4">
-              <InputRow label="Asking Price" icon={Tag}>
+              <InputRow label="Asking Price" icon={TagIcon}>
                 <div className="flex gap-2">
                   <input 
                     type="text" 
@@ -468,7 +487,7 @@ export default function PostAd() {
             </button>
           </div>
 
-          <InputRow label="Headline" icon={Tag}>
+          <InputRow label="Headline" icon={TagIcon}>
             <input 
               name="title"
               value={formData.title}
@@ -486,6 +505,31 @@ export default function PostAd() {
               placeholder="Provide professional details about your asset..." 
               className="w-full bg-gray-50 border-none rounded-xl p-4 text-xs font-medium outline-none" 
             />
+          </InputRow>
+
+          <InputRow label="Best Features" icon={Gem}>
+             <div className="space-y-3">
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    value={featureInput}
+                    onChange={(e) => setFeatureInput(e.target.value)}
+                    onKeyDown={handleAddFeature}
+                    placeholder="Ex: Corner Plot, Sea View, 24/7 Security..." 
+                    className="flex-1 bg-gray-50 border-none rounded-xl p-3 text-xs font-bold outline-none" 
+                  />
+                  <button type="button" onClick={handleAddFeature} className="p-3 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-all">
+                     <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                   {bestFeatures.map(tag => (
+                     <span key={tag} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase rounded-lg border border-emerald-100">
+                        {tag} <X className="w-3 h-3 cursor-pointer hover:text-red-500" onClick={() => setBestFeatures(bestFeatures.filter(t => t !== tag))} />
+                     </span>
+                   ))}
+                </div>
+             </div>
           </InputRow>
           
           <div className="pt-2">

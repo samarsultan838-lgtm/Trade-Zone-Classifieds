@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
@@ -25,7 +26,8 @@ import {
   MessageCircle,
   AlertCircle,
   Package,
-  Layers
+  Layers,
+  Gem
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -120,7 +122,7 @@ const ListingDetail: React.FC = () => {
   const handleWhatsApp = () => {
     if (isSold) return;
     const text = encodeURIComponent(`Hi, I'm interested in: ${listing.title}. ID: ${listing.id.toUpperCase()}`);
-    const number = listing.whatsappNumber?.replace(/\D/g, '') || '03462902804';
+    const number = listing.whatsappNumber?.replace(/\D/g, '') || listing.contactPhone?.replace(/\D/g, '') || '03462902804';
     window.open(`https://wa.me/${number}?text=${text}`, '_blank');
   };
 
@@ -164,6 +166,17 @@ const ListingDetail: React.FC = () => {
             <p className="text-emerald-950/80 uppercase tracking-tight">{listing.location.city}, {listing.location.country} — High Priority Zone</p>
           </div>
         </div>
+
+        {/* Best Features Highlight - New Addition */}
+        {listing.details.bestFeatures && listing.details.bestFeatures.length > 0 && (
+          <div className="py-6 flex flex-wrap gap-2 animate-in fade-in duration-700">
+             {listing.details.bestFeatures.map(feat => (
+               <div key={feat} className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-100 shadow-sm">
+                  <Gem className="w-3.5 h-3.5" /> {feat}
+               </div>
+             ))}
+          </div>
+        )}
 
         {/* Dynamic Spec Header */}
         {listing.category === CategoryType.PROPERTIES ? (

@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, User as UserIcon, Chrome, Apple, Facebook, ArrowRight, ShieldCheck, Sparkles, AlertTriangle, Loader2 } from 'lucide-react';
+import { Mail, Lock, User as UserIcon, Chrome, Apple, Facebook, ArrowRight, ShieldCheck, Sparkles, AlertTriangle, Loader2, Smartphone } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { User } from '../types';
 
@@ -12,6 +12,7 @@ const Auth: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    phone: '',
     password: ''
   });
   const navigate = useNavigate();
@@ -24,18 +25,26 @@ const Auth: React.FC = () => {
     // Artificial delay for premium feel
     setTimeout(() => {
       if (isLogin) {
-        const user = storageService.getCurrentUser();
-        storageService.updateUser({
-          ...user,
-          email: formData.email,
-          name: formData.name || user.name
-        });
-        setIsLoading(false);
-        navigate('/workspace');
+        const users = storageService.getUsers();
+        const found = users.find(u => u.email === formData.email);
+        
+        if (found) {
+          storageService.updateUser(found);
+          setIsLoading(false);
+          navigate('/workspace');
+        } else {
+          // Allow login for the hardcoded guest if needed, or error
+          if (formData.email === 'guest@trazot.com') {
+             navigate('/workspace');
+          } else {
+            setError("Merchant credentials not recognized. Please sign up.");
+            setIsLoading(false);
+          }
+        }
       } else {
         const check = storageService.isIdentifierUsed(formData.email);
         if (check.used) {
-          setError(`This ${check.type} is already registered. Duplicate accounts cannot claim additional free credits.`);
+          setError(`This email is already registered.`);
           setIsLoading(false);
           return;
         }
@@ -44,13 +53,14 @@ const Auth: React.FC = () => {
           id: `user_${Math.random().toString(36).substring(7)}`,
           name: formData.name,
           email: formData.email,
+          phone: formData.phone,
           isPremium: false,
+          tier: 'Free',
           credits: 5,
           joinedAt: new Date().toISOString()
         };
         
         storageService.updateUser(newUser);
-        storageService.registerIdentifier(formData.email, ''); 
         setIsLoading(false);
         navigate('/workspace');
       }
@@ -61,24 +71,18 @@ const Auth: React.FC = () => {
     setIsLoading(true);
     setError(null);
     
-    // Simulate Google OAuth Redirect/Response
     setTimeout(() => {
       const googleUser: User = {
         id: `google_${Math.random().toString(36).substring(7)}`,
         name: 'Google Merchant',
         email: 'merchant@gmail.com',
+        phone: '+971 XXX XXXXXX',
         isPremium: false,
+        tier: 'Professional',
         credits: 5,
         joinedAt: new Date().toISOString()
       };
       
-      const check = storageService.isIdentifierUsed(googleUser.email);
-      if (check.used && !isLogin) {
-        setError("This Google account is already registered with Trazot.");
-        setIsLoading(false);
-        return;
-      }
-
       storageService.updateUser(googleUser);
       setIsLoading(false);
       navigate('/workspace');
@@ -113,7 +117,7 @@ const Auth: React.FC = () => {
               Network.
             </h1>
             <p className="text-emerald-100/60 text-lg font-light leading-relaxed max-w-sm">
-              One account. One device. 5 free credits for new verified participants.
+              One account. One device. Verified trade credentials required for asset transmission.
             </p>
           </div>
           
@@ -131,7 +135,7 @@ const Auth: React.FC = () => {
               {isLogin ? 'Welcome Back' : 'Create Account'}
             </h2>
             <p className="text-gray-400 font-medium">
-              {isLogin ? 'Manage your assets with secure authorization.' : 'Register to claim your 5 free trade credits.'}
+              {isLogin ? 'Manage your assets with secure authorization.' : 'Register as a verified merchant to claim 5 free credits.'}
             </p>
           </div>
 
@@ -156,6 +160,7 @@ const Auth: React.FC = () => {
                 />
               </div>
             )}
+            
             <div className="relative group">
               <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-300 group-focus-within:text-emerald-500 transition-colors" />
               <input 
@@ -167,6 +172,21 @@ const Auth: React.FC = () => {
                 className="w-full bg-gray-50 border border-transparent rounded-[20px] py-4.5 pl-14 pr-6 outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-emerald-950 transition-all" 
               />
             </div>
+
+            {!isLogin && (
+              <div className="relative group">
+                <Smartphone className="absolute left-5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-300 group-focus-within:text-emerald-500 transition-colors" />
+                <input 
+                  type="tel" 
+                  required
+                  placeholder="Contact Phone Number" 
+                  value={formData.phone}
+                  onChange={e => setFormData(p => ({ ...p, phone: e.target.value }))}
+                  className="w-full bg-gray-50 border border-transparent rounded-[20px] py-4.5 pl-14 pr-6 outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-emerald-950 transition-all" 
+                />
+              </div>
+            )}
+
             <div className="relative group">
               <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-300 group-focus-within:text-emerald-500 transition-colors" />
               <input 
@@ -184,7 +204,7 @@ const Auth: React.FC = () => {
               disabled={isLoading}
               className="w-full bg-emerald-600 text-white py-5 rounded-[20px] font-black uppercase tracking-[0.2em] text-[11px] shadow-2xl shadow-emerald-600/30 flex items-center justify-center gap-3 transition-all active:scale-[0.98] mt-6 hover:bg-emerald-500 disabled:opacity-50"
             >
-              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : isLogin ? 'Authorize Access' : 'Create My Account'} 
+              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : isLogin ? 'Authorize Access' : 'Create Merchant Account'} 
               {!isLoading && <ArrowRight className="w-4 h-4" />}
             </button>
           </form>

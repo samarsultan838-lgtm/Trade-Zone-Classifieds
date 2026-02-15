@@ -14,7 +14,6 @@ const SAVED_SEARCHES_KEY = 'tz_saved_searches';
 
 /**
  * GLOBAL MARKETPLACE NODE
- * Using a public relay to ensure cross-device visibility for all users.
  */
 const CLOUD_NODE_URL = 'https://api.jsonbin.io/v3/b/67bd541cacd3cb34a8ef7be6'; 
 const MASTER_KEY = '$2a$10$7zV7f1pL6MvD9.x1xX1Z1.rO9xP7f9f9f9f9f9f9f9f9f9f9f9'; 
@@ -33,34 +32,37 @@ export const storageService = {
       const result = await response.json();
       const cloudData = result.record;
 
-      if (cloudData && Array.isArray(cloudData.listings)) {
-        // Current listings in this specific browser
-        const localListings = storageService.getListings();
-        const listingMap = new Map<string, Listing>();
-        
-        // 1. Start with Hardcoded Demo Listings (The baseline)
-        INITIAL_LISTINGS.forEach(l => listingMap.set(l.id, l));
-        
-        // 2. Add Cloud Listings (These include other users' uploads and the admin's approvals)
-        cloudData.listings.forEach((cL: Listing) => {
-          listingMap.set(cL.id, cL);
-        });
+      if (cloudData) {
+        // Handle Listings Sync
+        if (Array.isArray(cloudData.listings)) {
+          const localListings = storageService.getListings();
+          const listingMap = new Map<string, Listing>();
+          INITIAL_LISTINGS.forEach(l => listingMap.set(l.id, l));
+          cloudData.listings.forEach((cL: Listing) => listingMap.set(cL.id, cL));
+          localListings.forEach(l => {
+            const cloudVersion = listingMap.get(l.id);
+            if (!cloudVersion || new Date(l.createdAt) > new Date(cloudVersion.createdAt)) {
+              listingMap.set(l.id, l);
+            }
+          });
+          const mergedListings = Array.from(listingMap.values());
+          mergedListings.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          localStorage.setItem(LISTINGS_KEY, JSON.stringify(mergedListings));
+        }
 
-        // 3. Add Local Listings (Current user's recent uploads)
-        // This ensures the 43 inch LED is preserved even if the cloud hasn't synced it yet
-        localListings.forEach(l => {
-          // If the cloud version is older or doesn't exist, local version wins for the uploader
-          const cloudVersion = listingMap.get(l.id);
-          if (!cloudVersion || new Date(l.createdAt) > new Date(cloudVersion.createdAt)) {
-            listingMap.set(l.id, l);
-          }
-        });
-
-        const merged = Array.from(listingMap.values());
-        // Sort by date (newest first)
-        merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        
-        localStorage.setItem(LISTINGS_KEY, JSON.stringify(merged));
+        // Handle Users Registry Sync
+        if (Array.isArray(cloudData.users)) {
+          const localUsers = storageService.getUsers();
+          const userMap = new Map<string, User>();
+          cloudData.users.forEach((cU: User) => userMap.set(cU.id, cU));
+          localUsers.forEach(u => {
+            const cloudU = userMap.get(u.id);
+            if (!cloudU || new Date(u.joinedAt) > new Date(cloudU.joinedAt)) {
+              userMap.set(u.id, u);
+            }
+          });
+          localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(Array.from(userMap.values())));
+        }
       }
 
       return 'synced';
@@ -72,9 +74,9 @@ export const storageService = {
 
   broadcastToCloud: async () => {
     try {
-      // Get the absolute latest state from local storage before pushing
       const listings = storageService.getListings();
       const news = storageService.getNews();
+      const users = storageService.getUsers();
 
       await fetch(CLOUD_NODE_URL, {
         method: 'PUT',
@@ -82,26 +84,21 @@ export const storageService = {
           'Content-Type': 'application/json',
           'X-Master-Key': MASTER_KEY
         },
-        body: JSON.stringify({ listings, news, lastUpdate: new Date().toISOString() })
+        body: JSON.stringify({ listings, news, users, lastUpdate: new Date().toISOString() })
       });
       
-      // Notify other components in the same tab/window
       window.dispatchEvent(new Event('storage'));
     } catch (e) {
       console.error("Cloud Broadcast Error:", e);
     }
   },
 
-  // --- STANDARD DATA RETRIEVAL ---
+  // --- DATA RETRIEVAL ---
 
   getListings: (): Listing[] => {
     const stored = localStorage.getItem(LISTINGS_KEY);
-    if (!stored) {
-      localStorage.setItem(LISTINGS_KEY, JSON.stringify(INITIAL_LISTINGS));
-      return INITIAL_LISTINGS;
-    }
     try {
-      return JSON.parse(stored);
+      return stored ? JSON.parse(stored) : INITIAL_LISTINGS;
     } catch (e) {
       return INITIAL_LISTINGS;
     }
@@ -110,15 +107,12 @@ export const storageService = {
   saveListing: (listing: Listing) => {
     const listings = storageService.getListings();
     const existingIndex = listings.findIndex(l => l.id === listing.id);
-
     if (existingIndex !== -1) {
       listings[existingIndex] = listing;
     } else {
       listings.unshift(listing);
     }
-    
     localStorage.setItem(LISTINGS_KEY, JSON.stringify(listings));
-    // Trigger global update immediately
     storageService.broadcastToCloud();
   },
 
@@ -154,6 +148,7 @@ export const storageService = {
         name: 'Guest Merchant',
         email: 'guest@trazot.com',
         isPremium: false,
+        tier: 'Free',
         credits: 5,
         joinedAt: new Date().toISOString()
       };
@@ -163,8 +158,24 @@ export const storageService = {
     return JSON.parse(stored);
   },
 
+  getUsers: (): User[] => {
+    const stored = localStorage.getItem(USERS_REGISTRY_KEY);
+    return stored ? JSON.parse(stored) : [];
+  },
+
   updateUser: (user: User) => {
     localStorage.setItem(USER_KEY, JSON.stringify(user));
+    
+    // Maintain registry
+    const users = storageService.getUsers();
+    const idx = users.findIndex(u => u.id === user.id);
+    if (idx !== -1) {
+      users[idx] = user;
+    } else {
+      users.push(user);
+    }
+    localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(users));
+    storageService.broadcastToCloud();
   },
 
   getSavedSearches: () => JSON.parse(localStorage.getItem(SAVED_SEARCHES_KEY) || '[]'),
@@ -177,10 +188,13 @@ export const storageService = {
     const filtered = storageService.getSavedSearches().filter((s: any) => s.id !== id);
     localStorage.setItem(SAVED_SEARCHES_KEY, JSON.stringify(filtered));
   },
-  isIdentifierUsed: (email: string) => ({ used: false, type: '' }),
+  
+  isIdentifierUsed: (email: string) => {
+    const users = storageService.getUsers();
+    const used = users.some(u => u.email === email);
+    return { used, type: used ? 'email' : '' };
+  },
   registerIdentifier: (email: string, phone: string) => {},
-
-  // --- ADMIN AUTHENTICATION ---
 
   getAdminAuth: () => {
     const stored = localStorage.getItem(ADMIN_CRED_KEY);

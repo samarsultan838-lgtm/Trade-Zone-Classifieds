@@ -127,6 +127,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  phone?: string;
   isPremium: boolean;
   tier?: 'Free' | 'Starter' | 'Professional' | 'Elite';
   credits: number;
