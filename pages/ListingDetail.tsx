@@ -27,7 +27,14 @@ import {
   AlertCircle,
   Package,
   Layers,
-  Gem
+  Gem,
+  Sparkles,
+  Zap,
+  // Added missing imports for TrendingUp, Clock, UserIcon, and ArrowRight
+  TrendingUp,
+  Clock,
+  User as UserIcon,
+  ArrowRight
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -56,68 +63,13 @@ const ListingDetail: React.FC = () => {
     const foundListing = storageService.getListings().find(l => l.id === id);
     if (foundListing) {
       setListing(foundListing);
-      
-      // Inject Structured Data for SEO
-      const schemaType = foundListing.category === CategoryType.PROPERTIES ? 'RealEstateListing' : 'Product';
-      const scriptId = 'structured-data-listing';
-      let script = document.getElementById(scriptId) as HTMLScriptElement;
-      
-      if (!script) {
-        script = document.createElement('script');
-        script.id = scriptId;
-        script.type = 'application/ld+json';
-        document.head.appendChild(script);
-      }
-
-      const structuredData = {
-        "@context": "https://schema.org/",
-        "@type": schemaType,
-        "name": foundListing.title,
-        "image": foundListing.images,
-        "description": foundListing.description,
-        "sku": foundListing.id,
-        "offers": {
-          "@type": "Offer",
-          "url": window.location.href,
-          "priceCurrency": foundListing.currency,
-          "price": foundListing.price,
-          "availability": "https://schema.org/InStock",
-          "seller": {
-            "@type": "Organization",
-            "name": "Trazot Marketplace"
-          }
-        }
-      };
-      
-      script.textContent = JSON.stringify(structuredData);
-
-      return () => {
-        const s = document.getElementById(scriptId);
-        if (s) s.remove();
-      };
+      window.scrollTo(0, 0);
     }
   }, [id]);
-
-  const priceIndexData = useMemo(() => [
-    { month: 'Jan', price: 8.2 },
-    { month: 'Mar', price: 8.5 },
-    { month: 'May', price: 8.8 },
-    { month: 'Jul', price: 9.1 },
-    { month: 'Sep', price: 9.4 },
-    { month: 'Nov', price: 9.8 },
-  ], []);
 
   if (!listing) return <div className="text-center py-20 font-bold text-gray-500 uppercase tracking-[0.3em]">Asset Not Found</div>;
 
   const isSold = listing.status === AdStatus.SOLD;
-
-  const formatPrice = (price: number, currency: string) => {
-    if (currency === 'PKR' || currency === 'INR') {
-      if (price >= 10000000) return `${(price / 10000000).toFixed(1)} Crore`;
-      if (price >= 100000) return `${(price / 100000).toFixed(1)} Lakh`;
-    }
-    return price.toLocaleString();
-  };
 
   const handleWhatsApp = () => {
     if (isSold) return;
@@ -129,7 +81,7 @@ const ListingDetail: React.FC = () => {
   return (
     <div className="bg-white min-h-screen pb-24">
       {/* Visual Header */}
-      <div className="relative rounded-[40px] overflow-hidden shadow-2xl">
+      <div className="relative rounded-[40px] md:rounded-[56px] overflow-hidden shadow-2xl mx-2 mt-4">
         <ImageCarousel 
           images={listing.images} 
           aspectRatio="aspect-[4/3] md:aspect-[21/9]"
@@ -137,163 +89,121 @@ const ListingDetail: React.FC = () => {
         />
         {isSold && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-[20]">
-            <div className="bg-red-600 text-white px-10 py-4 rounded-2xl font-black text-3xl uppercase tracking-widest shadow-2xl border-4 border-white/20 -rotate-6">
-              SOLD
-            </div>
+            <div className="bg-red-600 text-white px-10 py-4 rounded-2xl font-black text-3xl uppercase tracking-widest shadow-2xl border-4 border-white/20 -rotate-6">SOLD</div>
           </div>
         )}
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 md:px-0">
+      <div className="max-w-6xl mx-auto px-4 lg:px-8 mt-12">
         {/* Header Info */}
-        <div className="py-8 flex items-start justify-between gap-4">
-          <div>
-            <h1 className="sr-only">{listing.title} - Price and Details</h1>
-            <div className="text-gray-900 font-black text-4xl md:text-6xl flex items-center gap-3">
-              <span className="text-xl md:text-2xl font-bold text-emerald-600">{listing.currency}</span> 
-              {formatPrice(listing.price, listing.currency)}
+        <div className="flex flex-col lg:flex-row items-start justify-between gap-8 mb-12">
+          <div className="flex-1 space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="px-3 py-1.5 bg-emerald-50 border border-emerald-100 rounded-full text-[9px] font-black uppercase tracking-widest text-emerald-600 flex items-center gap-2">
+                <ShieldCheck className="w-3.5 h-3.5" /> Verified Intelligence Packet
+              </div>
+              <span className="text-[10px] font-black uppercase text-gray-300 tracking-widest">{listing.id}</span>
+            </div>
+            
+            <h1 className="text-4xl lg:text-6xl font-black text-emerald-950 leading-tight tracking-tight">{listing.title}</h1>
+            
+            <div className="flex items-center gap-3 text-gray-500 font-bold uppercase tracking-tight text-sm">
+              <MapPin className="w-5 h-5 text-emerald-600 shrink-0" />
+              {listing.location.city}, {listing.location.country} — High Priority Zone
             </div>
           </div>
-          <div className="flex gap-3">
-            <button className="p-4 bg-gray-50 text-gray-400 rounded-2xl hover:bg-emerald-50 hover:text-red-500 transition-all border border-gray-100 shadow-sm"><Heart className="w-6 h-6" /></button>
-            <button className="p-4 bg-gray-50 text-gray-400 rounded-2xl hover:bg-emerald-50 hover:text-emerald-600 transition-all border border-gray-100 shadow-sm"><Share2 className="w-6 h-6" /></button>
+
+          <div className="lg:w-80 bg-gray-50/50 p-8 rounded-[48px] border border-gray-100 flex flex-col items-center justify-center text-center">
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-2">Market Valuation</p>
+            <div className="text-4xl lg:text-5xl font-black text-emerald-950 mb-2">
+              <span className="text-lg font-bold text-emerald-600 mr-2">{listing.currency}</span>
+              {listing.price.toLocaleString()}
+            </div>
+            <div className="flex items-center gap-2 text-[9px] font-black uppercase text-emerald-500 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
+               <TrendingUp className="w-3.5 h-3.5" /> Real-time Node Rate
+            </div>
           </div>
         </div>
 
-        <div className="pb-8 border-b border-gray-100">
-          <div className="flex items-start gap-3 text-gray-500 text-sm font-bold leading-relaxed">
-            <MapPin className="w-5 h-5 text-emerald-600 mt-0.5 shrink-0" />
-            <p className="text-emerald-950/80 uppercase tracking-tight">{listing.location.city}, {listing.location.country} — High Priority Zone</p>
-          </div>
-        </div>
-
-        {/* Best Features Highlight - New Addition */}
+        {/* Best Features Protocol 2.0 */}
         {listing.details.bestFeatures && listing.details.bestFeatures.length > 0 && (
-          <div className="py-6 flex flex-wrap gap-2 animate-in fade-in duration-700">
-             {listing.details.bestFeatures.map(feat => (
-               <div key={feat} className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-100 shadow-sm">
-                  <Gem className="w-3.5 h-3.5" /> {feat}
+          <div className="mb-12">
+            <h3 className="text-[11px] font-black uppercase tracking-[0.4em] text-emerald-900/30 mb-6 ml-1">Asset Highlight Spectrum</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+               {listing.details.bestFeatures.map(feat => (
+                 <div key={feat} className="group relative bg-white hover:bg-emerald-50 p-4 rounded-3xl border border-gray-100 hover:border-emerald-200 transition-all duration-300 shadow-sm flex flex-col items-center text-center gap-3">
+                    <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                       <Zap className="w-5 h-5 fill-current opacity-20" />
+                       <Gem className="w-5 h-5 absolute" />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-tight text-emerald-950">{feat}</span>
+                 </div>
+               ))}
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 border-t border-gray-100 pt-12">
+          {/* Main Context */}
+          <div className="lg:col-span-2 space-y-12">
+            <div className="space-y-6">
+               <h2 className="text-2xl font-black text-emerald-950 uppercase tracking-tight flex items-center gap-3"><Info className="text-emerald-500" /> Technical Brief</h2>
+               <p className="text-lg text-gray-600 leading-relaxed font-medium">
+                 {listing.description}
+               </p>
+            </div>
+
+            {/* Spec Matrix */}
+            <div className="bg-gray-50/50 rounded-[48px] p-8 md:p-12 border border-gray-100">
+               <div className="grid grid-cols-2 md:grid-cols-3 gap-10">
+                 {[
+                   { icon: <Maximize />, label: 'Dimensions', value: listing.details.area || 'Standard' },
+                   { icon: <Layers />, label: 'Asset Class', value: listing.category },
+                   { icon: <ShieldCheck />, label: 'Verification', value: listing.isVerified ? 'Elite Level' : 'Standard' },
+                   { icon: <Smartphone />, label: 'Lead Source', value: 'Trade Zone Node' },
+                   { icon: <Package />, label: 'Condition', value: listing.details.condition || 'Verified' },
+                   { icon: <Clock />, label: 'Joined Node', value: new Date(listing.createdAt).toLocaleDateString() }
+                 ].map((spec, i) => (
+                   <div key={i} className="space-y-3">
+                      <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm">{spec.icon}</div>
+                      <div>
+                        <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest">{spec.label}</p>
+                        <p className="text-sm font-black text-emerald-950">{spec.value}</p>
+                      </div>
+                   </div>
+                 ))}
                </div>
-             ))}
-          </div>
-        )}
-
-        {/* Dynamic Spec Header */}
-        {listing.category === CategoryType.PROPERTIES ? (
-          <div className="py-8 grid grid-cols-3 gap-8 border-b border-gray-100">
-            <div className="flex items-center gap-4">
-              <Maximize className="w-8 h-8 text-emerald-950" />
-              <span className="text-sm font-black text-emerald-950 uppercase tracking-wide">{listing.details.area || '1 Kanal'}</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <Bed className="w-8 h-8 text-emerald-950" />
-              <span className="text-sm font-black text-emerald-950 uppercase tracking-wide">{listing.details.bedrooms || 0} Beds</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <Bath className="w-8 h-8 text-emerald-950" />
-              <span className="text-sm font-black text-emerald-950 uppercase tracking-wide">{listing.details.bathrooms || 0} Baths</span>
-            </div>
-          </div>
-        ) : (
-          <div className="py-8 grid grid-cols-3 gap-8 border-b border-gray-100">
-            <div className="flex items-center gap-4">
-              <Package className="w-8 h-8 text-emerald-950" />
-              <span className="text-sm font-black text-emerald-950 uppercase tracking-wide truncate">{listing.details.brand || 'No Brand'}</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <ShieldCheck className="w-8 h-8 text-emerald-950" />
-              <span className="text-sm font-black text-emerald-950 uppercase tracking-wide">{listing.details.condition || 'Used'}</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <Layers className="w-8 h-8 text-emerald-950" />
-              <span className="text-sm font-black text-emerald-950 uppercase tracking-wide truncate">{listing.details.subCategory || 'Standard'}</span>
-            </div>
-          </div>
-        )}
-
-        {/* Communication Deck */}
-        <div className="py-12 space-y-8">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-900/40">Secure Contact Gateways</h3>
-              <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Connect with our verified brokerage team</p>
-            </div>
-            <div className="hidden sm:flex items-center gap-2 bg-emerald-50 px-4 py-2 rounded-full border border-emerald-100 shadow-sm">
-               <ShieldCheck className="w-4 h-4 text-emerald-600" />
-               <span className="text-[10px] font-black uppercase tracking-widest text-emerald-800">Verified Seller</span>
             </div>
           </div>
 
-          <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 transition-all duration-700 ${isSold ? 'grayscale pointer-events-none opacity-60' : ''}`}>
-            <button onClick={handleWhatsApp} className="flex items-center justify-center gap-3 bg-[#25D366] text-white px-6 py-4.5 rounded-2xl font-black uppercase tracking-[0.2em] text-[11px] shadow-xl shadow-green-500/30 hover:bg-[#1ebd5e] hover:scale-[1.03] transition-all active:scale-95 border border-white/10">
-              <MessageCircle className="w-5 h-5 fill-current" /> WhatsApp
-            </button>
-            <button className="flex items-center justify-center gap-3 bg-emerald-600 text-white px-6 py-4.5 rounded-2xl font-black uppercase tracking-[0.2em] text-[11px] shadow-xl shadow-emerald-600/30 hover:bg-emerald-700 hover:scale-[1.03] transition-all active:scale-95 border border-white/10">
-              <Phone className="w-5 h-5 fill-current" /> Call Now
-            </button>
-            <button className="flex items-center justify-center gap-3 bg-sky-500 text-white px-6 py-4.5 rounded-2xl font-black uppercase tracking-[0.2em] text-[11px] shadow-xl shadow-sky-500/30 hover:bg-sky-600 hover:scale-[1.03] transition-all active:scale-95 border border-white/10">
-              <MessageSquare className="w-5 h-5 fill-current" /> SMS Chat
-            </button>
-            <button onClick={() => setShowEmailModal(true)} className="flex items-center justify-center gap-3 bg-emerald-950 text-white px-6 py-4.5 rounded-2xl font-black uppercase tracking-[0.2em] text-[11px] shadow-xl shadow-black/20 hover:bg-black hover:scale-[1.03] transition-all active:scale-95 border border-white/5">
-              <Mail className="w-5 h-5" /> Send Offer
-            </button>
-          </div>
-        </div>
-
-        {/* Tab System */}
-        <div className="mt-8 flex items-center gap-10 border-b border-gray-100 overflow-x-auto scrollbar-hide">
-          {['Overview', 'Technical Details', 'Price Index'].map(tab => (
-            <button 
-              key={tab} 
-              onClick={() => setActiveTab(tab)}
-              className={`pb-5 text-[10px] font-black uppercase tracking-[0.3em] whitespace-nowrap transition-all border-b-4 ${activeTab === tab ? 'text-emerald-600 border-emerald-600' : 'text-gray-400 border-transparent hover:text-emerald-900'}`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-
-        <div className="py-12 animate-in fade-in slide-in-from-bottom-4">
-          {activeTab === 'Overview' && (
-            <div className="space-y-12">
-              <div className="space-y-6">
-                <h2 className="text-3xl font-bold text-emerald-950 tracking-tight">Details</h2>
-                <p className="text-gray-600 text-base leading-relaxed font-medium">
-                  {listing.description}
-                </p>
-                
-                {listing.details.bestFeatures && listing.details.bestFeatures.length > 0 && (
-                  <div className="pt-6">
-                    <h3 className="text-[10px] font-black uppercase tracking-widest text-emerald-900/40 mb-6">Key Attributes</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      {listing.details.bestFeatures.map(f => (
-                        <div key={f} className="bg-emerald-50 text-emerald-700 px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-emerald-100 flex items-center gap-2">
-                           <Check className="w-3.5 h-3.5" /> {f}
-                        </div>
-                      ))}
+          {/* Side Actions */}
+          <div className="space-y-8">
+            <div className="bg-emerald-950 rounded-[48px] p-10 text-white relative overflow-hidden shadow-3xl">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2" />
+              <h3 className="text-xl font-bold mb-8 flex items-center gap-3"><MessageCircle className="text-emerald-400" /> Merchant Interface</h3>
+              <div className="space-y-4 relative z-10">
+                 <button onClick={handleWhatsApp} className="w-full py-5 bg-[#25D366] text-white rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-xl shadow-green-500/20 hover:scale-[1.02] transition-all flex items-center justify-center gap-3">
+                   <MessageCircle className="w-5 h-5 fill-current" /> WhatsApp Relay
+                 </button>
+                 <button className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-xl shadow-emerald-500/20 hover:scale-[1.02] transition-all flex items-center justify-center gap-3">
+                   <Phone className="w-5 h-5 fill-current" /> Initialize Voice
+                 </button>
+                 <div className="pt-4 border-t border-white/10 mt-6 flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center"><UserIcon className="w-5 h-5 text-emerald-400" /></div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Verified ID</p>
+                      <p className="text-xs font-bold text-white/60">{listing.userId}</p>
                     </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="bg-gray-50/50 rounded-[40px] overflow-hidden border border-gray-100">
-                <div className="grid grid-cols-1 divide-y divide-gray-100">
-                  {[
-                    { label: 'Asset Category', value: listing.category },
-                    { label: 'Market Status', value: listing.status },
-                    { label: 'Origin Gateway', value: listing.location.city },
-                    { label: 'Asset Identifier', value: listing.id.toUpperCase() },
-                    { label: 'Security Verification', value: listing.isVerified ? 'Elite Level' : 'Standard' }
-                  ].map((row, i) => (
-                    <div key={i} className="flex py-6 px-10 items-center justify-between hover:bg-white transition-colors">
-                      <span className="text-gray-400 text-sm font-bold uppercase tracking-widest">{row.label}</span>
-                      <span className="text-emerald-950 text-sm font-black uppercase tracking-tight">{row.value}</span>
-                    </div>
-                  ))}
-                </div>
+                 </div>
               </div>
             </div>
-          )}
+
+            <div className="bg-white rounded-[40px] p-8 border border-gray-100 shadow-sm group">
+               <h4 className="text-sm font-bold text-emerald-950 mb-4 flex items-center gap-2"><Sparkles className="w-4 h-4 text-emerald-500" /> Safety Protocol</h4>
+               <p className="text-xs text-gray-500 leading-relaxed font-medium mb-6">Always conduct high-value asset inspections in public verified Trade Zone nodes.</p>
+               <button className="text-[10px] font-black uppercase tracking-widest text-emerald-600 flex items-center gap-2 group-hover:gap-4 transition-all">Integrity Policy <ArrowRight className="w-3.5 h-3.5" /></button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

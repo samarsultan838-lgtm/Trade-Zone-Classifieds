@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,15 +11,14 @@
   <meta name="description" content="Trazot is the premier marketplace for high-value assets across South Asia and the Gulf. Buy and sell verified properties, luxury vehicles, and high-end electronics. Apki Choice Hamara Mission.">
   <meta name="theme-color" content="#064e3b">
 
+  <!-- Performance: Preload Critical Assets -->
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" as="style">
+  <link rel="preload" href="https://images.unsplash.com/photo-1582408921715-18e7806367c1?auto=format&fit=crop&q=80&w=1200" as="image">
+
   <!-- Resource Hints for Speed -->
   <link rel="preconnect" href="https://images.unsplash.com">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preconnect" href="https://cdn.tailwindcss.com">
-  <link rel="dns-prefetch" href="https://unpkg.com">
-
-  <!-- Optimized Google Fonts with Swap -->
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   
   <!-- Leaflet Map CSS Optimized -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
@@ -28,7 +28,7 @@
       font-family: 'Plus Jakarta Sans', sans-serif;
       background-color: #ffffff;
       -webkit-font-smoothing: antialiased;
-      content-visibility: auto;
+      text-rendering: optimizeLegibility;
     }
     .font-serif-italic {
       font-family: 'DM Serif Display', serif;
@@ -37,8 +37,17 @@
     .scrollbar-hide::-webkit-scrollbar { display: none; }
     .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
     
-    /* Layout Shift Prevention */
-    .image-container { background-color: #f3f4f6; position: relative; overflow: hidden; }
+    /* Accessibility: Clear Focus States */
+    button:focus-visible, a:focus-visible {
+      outline: 2px solid #10b981;
+      outline-offset: 2px;
+    }
+
+    /* Performance: Prevent Layout Shift */
+    .image-container { background-color: #f3f4f6; position: relative; overflow: hidden; aspect-ratio: 4/3; }
+    
+    /* Rendering Optimization */
+    section { content-visibility: auto; contain-intrinsic-size: 0 500px; }
   </style>
 
   <script>window.process = { env: { API_KEY: '' } };</script>

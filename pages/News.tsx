@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { 
   Newspaper, 
@@ -54,11 +55,12 @@ const News: React.FC = () => {
       {/* Cinematic Editorial Header */}
       <header className="bg-[#01110a] pt-20 pb-48 px-6 relative overflow-hidden text-center">
         <div className="absolute inset-0 opacity-20 pointer-events-none">
+          {/* Fix: Changed fetchpriority to fetchPriority */}
           <img 
             src="https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&q=60&w=1600" 
             className="w-full h-full object-cover grayscale" 
             alt="" 
-            fetchpriority="high"
+            fetchPriority="high"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-[#01110a] via-[#01110a]/70 to-[#01110a]" />
         </div>
@@ -119,12 +121,13 @@ const News: React.FC = () => {
               className="group bg-white rounded-[48px] overflow-hidden border border-gray-100 shadow-3xl flex flex-col lg:flex-row min-h-[600px] hover:border-emerald-600/20 transition-all duration-700 cursor-pointer relative"
             >
               <div className="lg:w-[60%] relative overflow-hidden h-80 lg:h-auto">
+                {/* Fix: Changed fetchpriority to fetchPriority */}
                 <img 
                   src={featured.image} 
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[2000ms]" 
                   alt="" 
                   loading="eager"
-                  fetchpriority="high"
+                  fetchPriority="high"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/40 via-transparent to-transparent" />
                 <div className="absolute top-8 left-8 flex gap-2">

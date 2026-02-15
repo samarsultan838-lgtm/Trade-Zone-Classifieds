@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { 
   LayoutDashboard, 
@@ -14,7 +15,8 @@ import {
   TrendingUp,
   Building2,
   MessageSquare,
-  Globe
+  Globe,
+  X
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -28,7 +30,7 @@ interface SidebarItemProps {
   onClick?: () => void;
 }
 
-const SidebarItem: React.FC<SidebarItemProps> = ({ icon, label, to, active, hasDropdown, isOpen, onClick }) => {
+const SidebarItem: React.FC<SidebarItemProps> = ({ icon, label, to, active, onClick }) => {
   const content = (
     <div 
       className={`flex items-center justify-between px-6 py-3 cursor-pointer transition-all duration-200 group ${
@@ -46,26 +48,35 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ icon, label, to, active, hasD
           {label}
         </span>
       </div>
-      {hasDropdown && (isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />)}
     </div>
   );
 
-  return to ? <Link to={to} onClick={onClick}>{content}</Link> : content;
+  return to ? <Link to={to} onClick={onClick} aria-current={active ? 'page' : undefined}>{content}</Link> : content;
 };
 
 const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
   const location = useLocation();
-  const [listingsOpen, setListingsOpen] = useState(false);
-
   const isActive = (path: string) => location.pathname === path;
 
   return (
     <>
       {isOpen && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[60] lg:hidden" onClick={onClose} />
+        <div 
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[60] lg:hidden" 
+          onClick={onClose} 
+          aria-hidden="true"
+        />
       )}
-      <aside className={`fixed inset-y-0 left-0 w-72 bg-white border-r border-gray-100 z-[70] transition-transform duration-300 transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static`}>
+      <aside 
+        className={`fixed inset-y-0 left-0 w-72 bg-white border-r border-gray-100 z-[70] transition-transform duration-300 transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static`}
+        aria-label="Sidebar Navigation"
+      >
         <div className="flex flex-col h-full py-6">
+          <div className="lg:hidden flex justify-end px-6 mb-4">
+             <button onClick={onClose} aria-label="Close sidebar">
+               <X className="w-6 h-6 text-gray-400" />
+             </button>
+          </div>
           <nav className="flex-1 space-y-1 overflow-y-auto scrollbar-hide">
             <SidebarItem icon={<LayoutDashboard className="w-5 h-5" />} label="Dashboard" to="/" active={isActive('/')} onClick={onClose} />
             <SidebarItem icon={<Building2 className="w-5 h-5" />} label="Premium Homes" to="/homes" active={isActive('/homes')} onClick={onClose} />
