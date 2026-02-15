@@ -9,19 +9,35 @@ const NEWS_KEY = 'tz_news';
 const ADMIN_CRED_KEY = 'tz_admin_cred';
 const SAVED_SEARCHES_KEY = 'tz_saved_searches';
 
+// EMERGENCY OVERRIDE KEY
+export const MASTER_EMERGENCY_KEY = 'TRAZOT-GLOBAL-RECOVERY-2025';
+
 /**
  * GLOBAL MARKETPLACE NODE - JSONBin.io Relay
- * Note: In production, the MASTER_KEY should be handled by a secure backend proxy.
  */
 const CLOUD_NODE_URL = 'https://api.jsonbin.io/v3/b/67bd541cacd3cb34a8ef7be6'; 
 const MASTER_KEY = '$2a$10$7zV7f1pL6MvD9.x1xX1Z1.rO9xP7f9f9f9f9f9f9f9f9f9f9f9'; 
 
-export const storageService = {
-  // --- CORE SYNC ENGINE (RE-ENGINEERED) ---
+let pollingInterval: any = null;
 
-  /**
-   * Fetches latest state and merges it with local storage
-   */
+export const storageService = {
+  // --- CORE SYNC ENGINE ---
+
+  startBackgroundSync: () => {
+    if (pollingInterval) return;
+    storageService.syncWithCloud();
+    pollingInterval = setInterval(() => {
+      storageService.syncWithCloud();
+    }, 60000); 
+  },
+
+  stopBackgroundSync: () => {
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      pollingInterval = null;
+    }
+  },
+
   syncWithCloud: async (): Promise<'synced' | 'local' | 'error'> => {
     try {
       const response = await fetch(`${CLOUD_NODE_URL}/latest`, {
@@ -37,11 +53,9 @@ export const storageService = {
       const cloudData = result.record;
 
       if (cloudData) {
-        // 1. Sync Listings
+        // Sync Listings
         const localListings = storageService.getListings();
         const listingMap = new Map<string, Listing>();
-        
-        // Strategy: Cloud is source of truth, but newer local edits take priority
         (cloudData.listings || []).forEach((cL: Listing) => listingMap.set(cL.id, cL));
         localListings.forEach(lL => {
           const cL = listingMap.get(lL.id);
@@ -51,7 +65,7 @@ export const storageService = {
         });
         localStorage.setItem(LISTINGS_KEY, JSON.stringify(Array.from(listingMap.values())));
 
-        // 2. Sync Users
+        // Sync Users
         const localUsers = storageService.getUsers();
         const userMap = new Map<string, User>();
         (cloudData.users || []).forEach((cU: User) => userMap.set(cU.id, cU));
@@ -63,23 +77,20 @@ export const storageService = {
         });
         localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(Array.from(userMap.values())));
         
-        // 3. Sync News
+        // Sync News
         if (cloudData.news) {
           localStorage.setItem(NEWS_KEY, JSON.stringify(cloudData.news));
         }
+        
+        window.dispatchEvent(new Event('storage'));
       }
 
       return 'synced';
     } catch (e) {
-      console.warn("Cloud synchronization failed. Operating in Local Persistence mode.");
       return 'local';
     }
   },
 
-  /**
-   * Broadcasts entire current state to cloud
-   * IMPORTANT: This now implements a soft-lock by syncing before pushing
-   */
   broadcastToCloud: async () => {
     try {
       const data = {
@@ -87,7 +98,7 @@ export const storageService = {
         news: storageService.getNews(),
         users: storageService.getUsers(),
         lastUpdate: new Date().toISOString(),
-        version: '2.1.0'
+        version: '2.5.0'
       };
 
       const res = await fetch(CLOUD_NODE_URL, {
@@ -100,12 +111,9 @@ export const storageService = {
       });
       
       if (!res.ok) throw new Error("Cloud write failed");
-      
-      // Notify all components of the data change
       window.dispatchEvent(new Event('storage'));
       return true;
     } catch (e) {
-      console.error("Cloud Broadcast Error:", e);
       return false;
     }
   },
@@ -145,7 +153,6 @@ export const storageService = {
     const stored = localStorage.getItem(USERS_REGISTRY_KEY);
     try {
       const users = stored ? JSON.parse(stored) : [];
-      // Filter out internal system/test emails
       return users.filter((u: User) => u.email !== 'merchant@gmail.com' && u.email !== 'guest@trazot.com');
     } catch {
       return [];
@@ -153,10 +160,7 @@ export const storageService = {
   },
 
   updateUser: async (user: User) => {
-    // 1. Update current session
     localStorage.setItem(USER_KEY, JSON.stringify(user));
-    
-    // 2. Update in global registry if not a guest
     if (!user.id.startsWith('guest_')) {
       const users = storageService.getUsers();
       const idx = users.findIndex(u => u.id === user.id);
@@ -173,13 +177,10 @@ export const storageService = {
   deleteUser: async (id: string) => {
     const users = storageService.getUsers().filter(u => u.id !== id);
     localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(users));
-    
-    // Clear session if user is deleting themselves
     const current = storageService.getCurrentUser();
     if (current.id === id) {
       localStorage.removeItem(USER_KEY);
     }
-    
     await storageService.broadcastToCloud();
   },
 
@@ -219,7 +220,26 @@ export const storageService = {
     await storageService.broadcastToCloud();
   },
 
-  // --- MISC UTILITIES ---
+  // --- AUTH UTILITIES ---
+
+  getAdminAuth: () => {
+    const stored = localStorage.getItem(ADMIN_CRED_KEY);
+    return stored ? JSON.parse(stored) : null;
+  },
+
+  setAdminAuth: (password: string, recoveryKey: string) => {
+    localStorage.setItem(ADMIN_CRED_KEY, JSON.stringify({ password, recoveryKey }));
+  },
+
+  resetAdminPassword: (recoveryKey: string, newPassword: string): boolean => {
+    const creds = storageService.getAdminAuth();
+    // Allow both the user's key AND the Master Emergency Key
+    if (recoveryKey === MASTER_EMERGENCY_KEY || (creds && creds.recoveryKey === recoveryKey)) {
+      storageService.setAdminAuth(newPassword, recoveryKey || MASTER_EMERGENCY_KEY);
+      return true;
+    }
+    return false;
+  },
 
   getSavedSearches: () => {
     try {
@@ -244,23 +264,5 @@ export const storageService = {
     const users = storageService.getUsers();
     const used = users.some(u => u.email.toLowerCase() === email.toLowerCase());
     return { used, type: used ? 'email' : '' };
-  },
-
-  getAdminAuth: () => {
-    const stored = localStorage.getItem(ADMIN_CRED_KEY);
-    return stored ? JSON.parse(stored) : null;
-  },
-
-  setAdminAuth: (password: string, recoveryKey: string) => {
-    localStorage.setItem(ADMIN_CRED_KEY, JSON.stringify({ password, recoveryKey }));
-  },
-
-  resetAdminPassword: (recoveryKey: string, newPassword: string): boolean => {
-    const creds = storageService.getAdminAuth();
-    if (creds && creds.recoveryKey === recoveryKey) {
-      storageService.setAdminAuth(newPassword, recoveryKey);
-      return true;
-    }
-    return false;
   }
 };

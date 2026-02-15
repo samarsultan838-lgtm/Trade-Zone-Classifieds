@@ -8,7 +8,11 @@ export async function processImage(file: File): Promise<string> {
         const canvas = document.createElement('canvas');
         let width = img.width;
         let height = img.height;
-        const maxDim = 1280; // Slightly higher for premium feel
+        
+        // STRICT CONSTRAINTS: 
+        // 800px is optimal for mobile-first classifieds.
+        // Keeping string length minimal to fit into 5MB localStorage limits.
+        const maxDim = 800; 
 
         if (width > height) {
           if (width > maxDim) {
@@ -27,16 +31,12 @@ export async function processImage(file: File): Promise<string> {
         const ctx = canvas.getContext('2d');
         if (!ctx) return reject('No canvas context');
 
-        // Apply premium enhancements: 
-        // - Contrast for depth
-        // - Saturation for vibrancy
-        // - Sharpness (simulated with slight contrast boost)
-        // - Brightness for clarity
-        ctx.filter = 'contrast(1.15) saturate(1.12) brightness(1.08) sepia(0.02)';
+        // Apply slight visual enhancements to the compressed preview
+        ctx.filter = 'contrast(1.05) brightness(1.02) saturate(1.02)';
         ctx.drawImage(img, 0, 0, width, height);
         
-        // Export to Base64 with high-quality compression
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        // 0.5 Quality creates highly compact Base64 strings (~50-80kb per image)
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.5);
         resolve(dataUrl);
       };
       img.src = e.target?.result as string;

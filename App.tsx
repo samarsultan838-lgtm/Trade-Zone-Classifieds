@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { X, Send, Sparkles, Loader2, Minus, ChevronUp, Radio } from 'lucide-react';
@@ -171,12 +170,21 @@ const App: React.FC = () => {
   const [syncStatus, setSyncStatus] = useState<'syncing' | 'synced' | 'local' | 'error'>('syncing');
 
   useEffect(() => {
-    const initSync = async () => {
-      setSyncStatus('syncing');
-      const result = await storageService.syncWithCloud();
-      setSyncStatus(result === 'synced' ? 'synced' : result === 'local' ? 'local' : 'error');
+    // RESOLUTION: Start Background Sync Engine
+    storageService.startBackgroundSync();
+    
+    // Listen for storage events to update sync status bar
+    const handleStorageUpdate = () => {
+      // Small delay to let local data settle
+      setTimeout(() => setSyncStatus('synced'), 500);
     };
-    initSync();
+    
+    window.addEventListener('storage', handleStorageUpdate);
+    
+    return () => {
+      storageService.stopBackgroundSync();
+      window.removeEventListener('storage', handleStorageUpdate);
+    };
   }, []);
 
   const handleLangChange = (newLang: Language) => { setLang(newLang); localStorage.setItem('tz_lang', newLang); };
