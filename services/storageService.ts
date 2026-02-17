@@ -12,8 +12,16 @@ const SAVED_SEARCHES_KEY = 'tz_saved_searches';
 const SECURITY_LOGS_KEY = 'tz_security_logs';
 const SUBSCRIBERS_KEY = 'tz_newsletter_subscribers';
 
-export const OFFICIAL_DOMAIN = 'www.trazot.com';
+/** 
+ * HOSTINGER NODE CONFIGURATION 
+ * Matching Screenshot: u550128434
+ */
+export const OFFICIAL_DOMAIN = 'trazot.com';
 export const MASTER_EMERGENCY_KEY = 'TRAZOT-MASTER-2025-RECOVERY-NODE';
+const DB_NODE_ID = 'u550128434_trazot_db';
+const DB_ADMIN_USER = 'u550128434_trazot_admin';
+
+// The Cloud Relay Node (JSON-based persistence)
 const CLOUD_NODE_URL = 'https://api.jsonbin.io/v3/b/67bd541cacd3cb34a8ef7be6'; 
 const MASTER_KEY = '$2a$10$7zV7f1pL6MvD9.x1xX1Z1.rO9xP7f9f9f9f9f9f9f9f9f9f9f9'; 
 
@@ -49,9 +57,14 @@ export const storageService = {
     try {
       const res = await fetch(`${CLOUD_NODE_URL}/latest`, { method: 'HEAD', headers: { 'X-Master-Key': MASTER_KEY } });
       const latency = performance.now() - start;
-      return { status: res.ok ? 'Healthy' : 'Degraded', latency: Math.round(latency) };
+      return { 
+        status: res.ok ? 'Healthy' : 'Degraded', 
+        latency: Math.round(latency),
+        node: DB_NODE_ID,
+        admin: DB_ADMIN_USER
+      };
     } catch {
-      return { status: 'Offline', latency: 0 };
+      return { status: 'Offline', latency: 0, node: DB_NODE_ID, admin: DB_ADMIN_USER };
     }
   },
 
@@ -111,9 +124,10 @@ export const storageService = {
         promotions: storageService.getPromotions(),
         subscribers: storageService.getSubscribers(),
         lastUpdate: new Date().toISOString(),
-        version: '4.0.0-REGIONAL-PRICING',
+        version: '4.1.0-HOSTINGER-SYNC',
         domain: OFFICIAL_DOMAIN,
-        dbNode: 'u550128434_trazot_db'
+        dbNode: DB_NODE_ID,
+        dbUser: DB_ADMIN_USER
       };
       const res = await fetch(CLOUD_NODE_URL, {
         method: 'PUT',
@@ -172,7 +186,7 @@ export const storageService = {
         }
         user.credits -= cost;
 
-        // AUTOMATIC EXHAUSTION BONUS: Award 10 after full utilization of 30
+        // AUTOMATIC EXHAUSTION BONUS: Award 10 after full utilization of initial quota
         if (user.credits === 0 && !user.hasReceivedExhaustionBonus) {
           user.credits = 10;
           user.hasReceivedExhaustionBonus = true;
