@@ -14,17 +14,17 @@ const SUBSCRIBERS_KEY = 'tz_newsletter_subscribers';
 const MESSAGES_KEY = 'tz_internal_messages';
 
 /** 
- * HOSTINGER NODE CONFIGURATION 
- * Matching Screenshot: u550128434
+ * HOSTINGER PRODUCTION NODE CONFIGURATION 
+ * Domain: trazot.com
+ * Database: u550128434_trazot_db
  */
 export const OFFICIAL_DOMAIN = 'trazot.com';
 export const MASTER_EMERGENCY_KEY = 'TRAZOT-MASTER-2025-RECOVERY-NODE';
 const DB_NODE_ID = 'u550128434_trazot_db';
 const DB_ADMIN_USER = 'u550128434_trazot_admin';
 
-// The Cloud Relay Node (JSON-based persistence)
-const CLOUD_NODE_URL = 'https://api.jsonbin.io/v3/b/67bd541cacd3cb34a8ef7be6'; 
-const MASTER_KEY = '$2a$10$7zV7f1pL6MvD9.x1xX1Z1.rO9xP7f9f9f9f9f9f9f9f9f9f9f9'; 
+// The Production API Relay on your Hostinger Server
+const CLOUD_NODE_URL = 'https://trazot.com/api.php'; 
 
 let pollingInterval: any = null;
 
@@ -56,7 +56,8 @@ export const storageService = {
   getBackendHealth: async () => {
     const start = performance.now();
     try {
-      const res = await fetch(`${CLOUD_NODE_URL}/latest`, { method: 'HEAD', headers: { 'X-Master-Key': MASTER_KEY } });
+      // Check your Hostinger API status
+      const res = await fetch(CLOUD_NODE_URL, { method: 'HEAD' });
       const latency = performance.now() - start;
       return { 
         status: res.ok ? 'Healthy' : 'Degraded', 
@@ -84,12 +85,12 @@ export const storageService = {
 
   syncWithCloud: async (): Promise<'synced' | 'local' | 'error'> => {
     try {
-      const response = await fetch(`${CLOUD_NODE_URL}/latest`, {
-        headers: { 'X-Master-Key': MASTER_KEY, 'Cache-Control': 'no-cache' }
+      const response = await fetch(`${CLOUD_NODE_URL}?action=fetch_latest`, {
+        headers: { 'Cache-Control': 'no-cache' }
       });
       if (!response.ok) return 'local';
       const result = await response.json();
-      const cloudData = result.record;
+      const cloudData = result.data;
 
       if (cloudData) {
         const resolveCollection = (localKey: string, cloudArray: any[], identifier: string = 'id', timeKey: string = 'createdAt') => {
@@ -97,7 +98,6 @@ export const storageService = {
           const local = stored ? JSON.parse(stored) : [];
           const mergedMap = new Map();
           
-          // UNION-MERGE STRATEGY: Take everything from both sides, resolving conflicts by timestamp
           [...cloudArray, ...local].forEach(item => {
             const existing = mergedMap.get(item[identifier]);
             if (!existing || new Date(item[timeKey]) > new Date(existing[timeKey])) {
@@ -109,13 +109,11 @@ export const storageService = {
 
         resolveCollection(LISTINGS_KEY, cloudData.listings || [], 'id', 'createdAt');
         
-        // USER REGISTRY MERGE: Ensure once registered, never removed
         const remoteUsers = cloudData.users || [];
         const localUsers = JSON.parse(localStorage.getItem(USERS_REGISTRY_KEY) || '[]');
         const userMap = new Map();
         [...remoteUsers, ...localUsers].forEach(u => {
           const existing = userMap.get(u.id);
-          // PRIORITIZE LOCAL DATA FOR CREDITS TO AVOID OVERWRITING RECENT PROVISIONS
           if (!existing || u.credits > (existing.credits || 0) || new Date(u.joinedAt) > new Date(existing.joinedAt)) {
              userMap.set(u.id, u);
           }
@@ -128,7 +126,6 @@ export const storageService = {
         if (cloudData.subscribers) localStorage.setItem(SUBSCRIBERS_KEY, JSON.stringify(cloudData.subscribers));
         if (cloudData.messages) localStorage.setItem(MESSAGES_KEY, JSON.stringify(cloudData.messages));
         
-        // IMMEDIATE SESSION SYNC
         const localUser = storageService.getCurrentUser();
         if (localUser.id !== 'guest') {
           const updatedUser = Array.from(userMap.values()).find((u: any) => u.id === localUser.id);
@@ -152,15 +149,16 @@ export const storageService = {
         subscribers: storageService.getSubscribers(),
         messages: storageService.getInternalMessages(),
         lastUpdate: new Date().toISOString(),
-        version: '4.1.7-CREDIT-RELAY-SYNC',
+        version: '5.0.0-HOSTINGER-DB-PROD',
         domain: OFFICIAL_DOMAIN,
         dbNode: DB_NODE_ID,
         dbUser: DB_ADMIN_USER
       };
+      
       const res = await fetch(CLOUD_NODE_URL, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'X-Master-Key': MASTER_KEY },
-        body: JSON.stringify(data)
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'push_sync', payload: data })
       });
       return res.ok;
     } catch { return false; }
@@ -172,18 +170,15 @@ export const storageService = {
   },
 
   updateUser: async (user: User) => {
-    // 1. Sync local session
     const currentUser = storageService.getCurrentUser();
     if (currentUser.id === user.id) localStorage.setItem(USER_KEY, JSON.stringify(user));
     
-    // 2. Sync global registry
     if (user.email !== 'guest@trazot.com') {
       const users = JSON.parse(localStorage.getItem(USERS_REGISTRY_KEY) || '[]');
       const idx = users.findIndex((u: User) => u.id === user.id);
       if (idx !== -1) users[idx] = user; else users.push(user);
       localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(users));
       
-      // 3. Persistent broadcast
       window.dispatchEvent(new Event('storage'));
       await storageService.broadcastToCloud();
     }
