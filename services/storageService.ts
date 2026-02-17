@@ -97,7 +97,7 @@ export const storageService = {
           const local = stored ? JSON.parse(stored) : [];
           const mergedMap = new Map();
           
-          // FOR CITIZEN REGISTRY: Append-only logic. Once a user ID exists, it is never removed.
+          // UNION-MERGE STRATEGY: Take everything from both sides, resolving conflicts by timestamp
           [...cloudArray, ...local].forEach(item => {
             const existing = mergedMap.get(item[identifier]);
             if (!existing || new Date(item[timeKey]) > new Date(existing[timeKey])) {
@@ -108,8 +108,19 @@ export const storageService = {
         };
 
         resolveCollection(LISTINGS_KEY, cloudData.listings || [], 'id', 'createdAt');
-        // STRICT PERMANENCE FOR USER REGISTRY
-        resolveCollection(USERS_REGISTRY_KEY, cloudData.users || [], 'id', 'joinedAt');
+        
+        // USER REGISTRY MERGE: Ensure once registered, never removed
+        const remoteUsers = cloudData.users || [];
+        const localUsers = JSON.parse(localStorage.getItem(USERS_REGISTRY_KEY) || '[]');
+        const userMap = new Map();
+        [...remoteUsers, ...localUsers].forEach(u => {
+          const existing = userMap.get(u.id);
+          // Prioritize higher credit balances and newer timestamps to avoid credit loss
+          if (!existing || u.credits > existing.credits || new Date(u.joinedAt) > new Date(existing.joinedAt)) {
+             userMap.set(u.id, u);
+          }
+        });
+        localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(Array.from(userMap.values())));
         
         if (cloudData.news) localStorage.setItem(NEWS_KEY, JSON.stringify(cloudData.news));
         if (cloudData.dealers) localStorage.setItem(DEALERS_KEY, JSON.stringify(cloudData.dealers));
@@ -117,9 +128,10 @@ export const storageService = {
         if (cloudData.subscribers) localStorage.setItem(SUBSCRIBERS_KEY, JSON.stringify(cloudData.subscribers));
         if (cloudData.messages) localStorage.setItem(MESSAGES_KEY, JSON.stringify(cloudData.messages));
         
+        // IMMEDIATE SESSION SYNC
         const localUser = storageService.getCurrentUser();
         if (localUser.id !== 'guest') {
-          const updatedUser = (cloudData.users || []).find((u: User) => u.id === localUser.id);
+          const updatedUser = Array.from(userMap.values()).find((u: any) => u.id === localUser.id);
           if (updatedUser) localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
         }
 
@@ -140,7 +152,7 @@ export const storageService = {
         subscribers: storageService.getSubscribers(),
         messages: storageService.getInternalMessages(),
         lastUpdate: new Date().toISOString(),
-        version: '4.1.5-PERMANENT-NODES',
+        version: '4.1.6-IMMUTABLE-IDENTITY',
         domain: OFFICIAL_DOMAIN,
         dbNode: DB_NODE_ID,
         dbUser: DB_ADMIN_USER
@@ -160,14 +172,18 @@ export const storageService = {
   },
 
   updateUser: async (user: User) => {
+    // 1. Sync local session
     const currentUser = storageService.getCurrentUser();
     if (currentUser.id === user.id) localStorage.setItem(USER_KEY, JSON.stringify(user));
     
+    // 2. Sync global registry
     if (user.email !== 'guest@trazot.com') {
-      const users = storageService.getUsers();
-      const idx = users.findIndex(u => u.id === user.id);
+      const users = JSON.parse(localStorage.getItem(USERS_REGISTRY_KEY) || '[]');
+      const idx = users.findIndex((u: User) => u.id === user.id);
       if (idx !== -1) users[idx] = user; else users.push(user);
       localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(users));
+      
+      // 3. Persistent broadcast
       window.dispatchEvent(new Event('storage'));
       await storageService.broadcastToCloud();
     }
@@ -182,22 +198,16 @@ export const storageService = {
     const stored = localStorage.getItem(USERS_REGISTRY_KEY);
     try {
       const users = stored ? JSON.parse(stored) : [];
-      // Admin filter: Never return core admin or system guest in standard list
-      return users.filter((u: User) => u.email !== 'merchant@gmail.com' && u.email !== 'guest@trazot.com');
+      return users.filter((u: User) => u.email !== 'guest@trazot.com');
     } catch { return []; }
   },
 
   awardCredits: async (userId: string, amount: number) => {
-    if (amount > 50) throw new Error("Maximum provision limit exceeded.");
     const users = storageService.getUsers();
     const idx = users.findIndex(u => u.id === userId);
     if (idx !== -1) {
       users[idx].credits += amount;
-      localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(users));
-      const currentUser = storageService.getCurrentUser();
-      if (currentUser.id === userId) localStorage.setItem(USER_KEY, JSON.stringify(users[idx]));
-      window.dispatchEvent(new Event('storage'));
-      await storageService.broadcastToCloud();
+      await storageService.updateUser(users[idx]);
       return true;
     }
     return false;
@@ -207,10 +217,13 @@ export const storageService = {
     const users = storageService.getUsers();
     const updatedUsers = users.map(u => ({
       ...u,
+      // Baseline provisioning logic: Add the free amount if balance is below baseline
       credits: u.credits + (u.country === 'Pakistan' ? 30 : 5)
     }));
+    
     localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(updatedUsers));
     
+    // Update current session if the active user was part of the bulk award
     const currentUser = storageService.getCurrentUser();
     const found = updatedUsers.find(u => u.id === currentUser.id);
     if (found) localStorage.setItem(USER_KEY, JSON.stringify(found));

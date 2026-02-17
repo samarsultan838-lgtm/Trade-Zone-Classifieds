@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, User as UserIcon, ArrowRight, ShieldCheck, Sparkles, AlertTriangle, Loader2, Smartphone, Globe, ChevronDown } from 'lucide-react';
 import { storageService } from '../services/storageService.ts';
+import { locationService } from '../services/locationService.ts';
 import { User } from '../types.ts';
 import { COUNTRIES } from '../constants.ts';
 
@@ -25,19 +26,24 @@ const Auth: React.FC = () => {
       // Simulate Google OAuth Delay
       await new Promise(r => setTimeout(r, 1200));
       
+      const detectedCountry = locationService.detectUserCountry();
+      const initialCredits = detectedCountry === 'Pakistan' ? 30 : 5;
+      
       const googleUser: User = {
         id: `node_google_${Date.now()}`,
         name: "Verified Merchant (Google)",
         email: "verified.merchant@gmail.com",
         isPremium: false,
         tier: 'Free',
-        credits: 30, // Default for new permanent node
+        credits: initialCredits, // Dynamic provisioning based on detected region
         joinedAt: new Date().toISOString(),
-        country: 'Pakistan'
+        country: detectedCountry
       };
 
+      // Force creation/update in global registry
       await storageService.updateUser(googleUser);
       storageService.setCurrentUser(googleUser);
+      
       navigate('/workspace');
     } catch (err: any) {
       setError("Google authorization node unreachable.");
@@ -52,6 +58,7 @@ const Auth: React.FC = () => {
     setIsLoading(true);
     
     try {
+      // Ensure we have the latest state before registering
       await storageService.syncWithCloud();
 
       if (isLogin) {
