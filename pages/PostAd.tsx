@@ -34,7 +34,15 @@ import {
   CheckCircle2,
   Receipt,
   Navigation,
-  ShieldAlert
+  ShieldAlert,
+  Car,
+  Cpu,
+  History,
+  Activity,
+  Box,
+  Monitor,
+  Palette,
+  HardDrive
 } from 'lucide-react';
 import { CategoryType, ListingPurpose, AdStatus, Listing, PropertyType, AreaUnit } from '../types.ts';
 import { storageService } from '../services/storageService.ts';
@@ -119,7 +127,7 @@ export default function PostAd() {
     areaValue: '',
     areaUnit: AreaUnit.MARLA,
     price: '',
-    currency: 'PKR',
+    currency: (user.country === 'Pakistan' || !user.country) ? 'PKR' : 'USD',
     featured: false,
     title: '',
     description: '',
@@ -127,7 +135,22 @@ export default function PostAd() {
     isInstallment: false,
     isReady: false,
     bedrooms: '3',
-    bathrooms: '3'
+    bathrooms: '3',
+    furnished: 'Unfurnished',
+    // Vehicle specifics
+    make: '',
+    model: '',
+    year: new Date().getFullYear(),
+    mileage: '',
+    transmission: 'Automatic',
+    fuelType: 'Petrol',
+    engineCapacity: '',
+    color: '',
+    // Electronics specifics
+    brand: '',
+    condition: 'New',
+    warranty: false,
+    storage: ''
   });
 
   const cost = useMemo(() => {
@@ -159,7 +182,7 @@ export default function PostAd() {
       }));
       setImages(prev => [...prev, ...processedImages]);
     } catch (err: any) {
-      setError(err.message || "Asset rejection by security layer.");
+      setError(err.message || "Asset firewall rejection.");
     } finally {
       setImageProcessing(false);
     }
@@ -170,13 +193,8 @@ export default function PostAd() {
     setError(null);
     if (honeypot) return;
 
-    if (!storageService.security.rateLimit('post_ad', 1, 30000)) {
-      setError("Asset submission cycle exceeded. Wait 30 seconds.");
-      return;
-    }
-
     if (user.credits < cost && user.id !== 'user_guest') {
-      setError(`Insufficient Credits. Current Balance: ${user.credits}, Required: ${cost}`);
+      setError(`Insufficient Credits. Balance: ${user.credits}, Required: ${cost}`);
       return;
     }
 
@@ -205,12 +223,30 @@ export default function PostAd() {
       contactPhone: formData.mobile,
       whatsappNumber: formData.mobile,
       details: {
-        propertyType: formData.propertyType,
-        area: `${formData.areaValue} ${formData.areaUnit}`,
-        bedrooms: formData.bedrooms,
-        bathrooms: formData.bathrooms,
-        isReady: formData.isReady,
-        isInstallment: formData.isInstallment
+        ...(category === CategoryType.PROPERTIES ? {
+          propertyType: formData.propertyType,
+          area: `${formData.areaValue} ${formData.areaUnit}`,
+          bedrooms: formData.bedrooms,
+          bathrooms: formData.bathrooms,
+          isReady: formData.isReady,
+          isInstallment: formData.isInstallment,
+          furnished: formData.furnished as any
+        } : category === CategoryType.VEHICLES ? {
+          make: formData.make,
+          model: formData.model,
+          year: Number(formData.year),
+          mileage: Number(formData.mileage),
+          transmission: formData.transmission,
+          fuelType: formData.fuelType,
+          engineCapacity: formData.engineCapacity,
+          color: formData.color
+        } : {
+          brand: formData.brand,
+          model: formData.model,
+          condition: formData.condition as any,
+          warranty: formData.warranty,
+          storage: formData.storage
+        })
       }
     };
 
@@ -239,7 +275,7 @@ export default function PostAd() {
                   <ShieldAlert className="w-5 h-5 text-emerald-500" />
                   <h1 className="text-2xl font-serif-italic">Transmit <span className="text-emerald-500">Asset</span></h1>
                 </div>
-                <p className="text-emerald-100/60 text-[10px] font-black uppercase tracking-widest">Pricing Node: {formData.country === 'Pakistan' ? 'Regional (5/10)' : 'Global (1/2)'}</p>
+                <p className="text-emerald-100/60 text-[10px] font-black uppercase tracking-widest">Regional Node: {formData.country}</p>
               </div>
               <div className="bg-white/10 px-4 py-2 rounded-xl text-center border border-white/5">
                 <p className="text-[7px] font-black uppercase text-emerald-400">Available Credits</p>
@@ -262,28 +298,100 @@ export default function PostAd() {
                </InputRow>
             </div>
             <InputRow label="Society / Area / Neighborhood" icon={Building2}>
-              <input 
-                name="society" 
-                value={formData.society} 
-                onChange={handleInputChange} 
-                placeholder="e.g. DHA Phase 6, Dubai Marina..." 
-                className="w-full bg-gray-50 rounded-xl p-3 text-xs font-bold outline-none" 
-              />
+              <input name="society" value={formData.society} onChange={handleInputChange} placeholder="e.g. DHA Phase 6, Dubai Marina..." className="w-full bg-gray-50 rounded-xl p-3 text-xs font-bold outline-none" />
             </InputRow>
         </SectionCard>
 
         <SectionCard icon={Sliders} title="Market Selection">
            <ChipSelector options={Object.values(CategoryType)} value={category} onChange={(v) => setCategory(v)} label="Asset Category" />
-            <div className="grid grid-cols-2 gap-4">
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-500">
+               {category === CategoryType.PROPERTIES && (
+                 <>
+                    <InputRow label="Property Type" icon={Building2}>
+                      <select name="propertyType" value={formData.propertyType} onChange={handleInputChange} className="w-full bg-gray-50 rounded-xl p-3 text-xs font-bold outline-none">
+                        {Object.values(PropertyType).map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </InputRow>
+                    <InputRow label="Furnishing" icon={Box}>
+                      <select name="furnished" value={formData.furnished} onChange={handleInputChange} className="w-full bg-gray-50 rounded-xl p-3 text-xs font-bold outline-none">
+                        <option>Unfurnished</option><option>Semi-Furnished</option><option>Fully Furnished</option>
+                      </select>
+                    </InputRow>
+                    <div className="flex gap-2">
+                       <InputRow label="Area Value" className="flex-1">
+                          <input type="number" name="areaValue" value={formData.areaValue} onChange={handleInputChange} placeholder="500" className="w-full bg-gray-50 rounded-xl p-3 text-xs font-bold outline-none" />
+                       </InputRow>
+                       <InputRow label="Unit" className="w-24">
+                          <select name="areaUnit" value={formData.areaUnit} onChange={handleInputChange} className="w-full bg-gray-50 rounded-xl p-3 text-xs font-bold outline-none">
+                             {Object.values(AreaUnit).map(u => <option key={u} value={u}>{u}</option>)}
+                          </select>
+                       </InputRow>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <InputRow label="Bedrooms" icon={Bed}>
+                        <input type="number" name="bedrooms" value={formData.bedrooms} onChange={handleInputChange} className="w-full bg-gray-50 rounded-xl p-3 text-xs font-bold outline-none" />
+                      </InputRow>
+                      <InputRow label="Bathrooms" icon={Bath}>
+                        <input type="number" name="bathrooms" value={formData.bathrooms} onChange={handleInputChange} className="w-full bg-gray-50 rounded-xl p-3 text-xs font-bold outline-none" />
+                      </InputRow>
+                    </div>
+                 </>
+               )}
+
+               {category === CategoryType.VEHICLES && (
+                 <>
+                    <InputRow label="Make / Brand" icon={Car}>
+                       <input type="text" name="make" value={formData.make} onChange={handleInputChange} placeholder="e.g. Toyota" className="w-full bg-gray-50 rounded-xl p-3 text-xs font-bold outline-none" />
+                    </InputRow>
+                    <InputRow label="Model" icon={TagIcon}>
+                       <input type="text" name="model" value={formData.model} onChange={handleInputChange} placeholder="e.g. Corolla" className="w-full bg-gray-50 rounded-xl p-3 text-xs font-bold outline-none" />
+                    </InputRow>
+                    <InputRow label="Engine Cap. (cc/L)" icon={Zap}>
+                       <input type="text" name="engineCapacity" value={formData.engineCapacity} onChange={handleInputChange} placeholder="e.g. 1800cc" className="w-full bg-gray-50 rounded-xl p-3 text-xs font-bold outline-none" />
+                    </InputRow>
+                    <InputRow label="Exterior Color" icon={Palette}>
+                       <input type="text" name="color" value={formData.color} onChange={handleInputChange} placeholder="e.g. White" className="w-full bg-gray-50 rounded-xl p-3 text-xs font-bold outline-none" />
+                    </InputRow>
+                    <InputRow label="Reg. Year" icon={History}>
+                       <input type="number" name="year" value={formData.year} onChange={handleInputChange} className="w-full bg-gray-50 rounded-xl p-3 text-xs font-bold outline-none" />
+                    </InputRow>
+                    <InputRow label="Mileage (KM)" icon={Activity}>
+                       <input type="number" name="mileage" value={formData.mileage} onChange={handleInputChange} className="w-full bg-gray-50 rounded-xl p-3 text-xs font-bold outline-none" />
+                    </InputRow>
+                 </>
+               )}
+
+               {category === CategoryType.ELECTRONICS && (
+                 <>
+                    <InputRow label="Brand" icon={Cpu}>
+                       <input type="text" name="brand" value={formData.brand} onChange={handleInputChange} placeholder="e.g. Apple" className="w-full bg-gray-50 rounded-xl p-3 text-xs font-bold outline-none" />
+                    </InputRow>
+                    <InputRow label="Model" icon={Monitor}>
+                       <input type="text" name="model" value={formData.model} onChange={handleInputChange} placeholder="e.g. iPhone 16 Pro" className="w-full bg-gray-50 rounded-xl p-3 text-xs font-bold outline-none" />
+                    </InputRow>
+                    <InputRow label="Storage" icon={HardDrive}>
+                       <input type="text" name="storage" value={formData.storage} onChange={handleInputChange} placeholder="e.g. 256GB" className="w-full bg-gray-50 rounded-xl p-3 text-xs font-bold outline-none" />
+                    </InputRow>
+                    <InputRow label="Condition" icon={Box}>
+                       <select name="condition" value={formData.condition} onChange={handleInputChange} className="w-full bg-gray-50 rounded-xl p-3 text-xs font-bold outline-none">
+                          <option>New</option><option>Used (Mint)</option><option>Used (Good)</option><option>Open Box</option>
+                       </select>
+                    </InputRow>
+                 </>
+               )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-50 mt-4">
                <InputRow label="Asking Price" icon={TagIcon}>
                   <input type="number" name="price" value={formData.price} onChange={handleInputChange} placeholder="000" className="w-full bg-gray-50 rounded-xl p-3 text-xs font-bold outline-none" />
                </InputRow>
-               <InputRow label="Mobile" icon={Smartphone}>
+               <InputRow label="Mobile Node" icon={Smartphone}>
                   <input type="tel" name="mobile" value={formData.mobile} onChange={handleInputChange} placeholder="+92" className="w-full bg-gray-50 rounded-xl p-3 text-xs font-bold outline-none" />
                </InputRow>
             </div>
 
-            <div className="pt-4 mt-4 border-t border-gray-50">
+            <div className="pt-4 mt-4">
                <div className="flex items-center justify-between p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100">
                   <div className="flex items-center gap-3">
                      <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-lg">
@@ -291,7 +399,7 @@ export default function PostAd() {
                      </div>
                      <div>
                         <p className="text-[10px] font-black text-emerald-950 uppercase">Apply Featured Status</p>
-                        <p className="text-[8px] font-bold text-emerald-600 uppercase">Max Visibility • {formData.country === 'Pakistan' ? 10 : 2} Credits</p>
+                        <p className="text-[8px] font-bold text-emerald-600 uppercase">{formData.country === 'Pakistan' ? 10 : 2} Credits</p>
                      </div>
                   </div>
                   <input type="checkbox" name="featured" checked={formData.featured} onChange={handleInputChange} className="w-6 h-6 accent-emerald-600 cursor-pointer" />
@@ -300,7 +408,7 @@ export default function PostAd() {
         </SectionCard>
 
         <SectionCard icon={FileText} title="Asset Inventory">
-          <InputRow label="Headline (Sanitized)" icon={TagIcon}>
+          <InputRow label="Headline" icon={TagIcon}>
             <input name="title" value={formData.title} onChange={handleInputChange} className="w-full bg-gray-50 rounded-xl p-3 text-xs font-bold outline-none" />
           </InputRow>
           <InputRow label="Deep Briefing" icon={FileText}>
@@ -314,7 +422,7 @@ export default function PostAd() {
           </div>
         </SectionCard>
 
-        {error && <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-xl text-[10px] font-black uppercase flex items-center gap-3 border border-red-100 shadow-sm"><ShieldAlert className="w-5 h-5" /> {error}</div>}
+        {error && <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-xl text-[10px] font-black uppercase flex items-center gap-3 border border-red-100"><ShieldAlert className="w-5 h-5" /> {error}</div>}
 
         <button type="submit" disabled={loading || imageProcessing} className="w-full bg-[#17933f] text-white py-6 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-2xl hover:bg-emerald-700 transition-all disabled:opacity-50">
           {loading ? 'Analyzing Packets...' : `Authorize Transmission (${cost} Credits)`}

@@ -115,8 +115,8 @@ export const storageService = {
         const userMap = new Map();
         [...remoteUsers, ...localUsers].forEach(u => {
           const existing = userMap.get(u.id);
-          // Prioritize higher credit balances and newer timestamps to avoid credit loss
-          if (!existing || u.credits > existing.credits || new Date(u.joinedAt) > new Date(existing.joinedAt)) {
+          // PRIORITIZE LOCAL DATA FOR CREDITS TO AVOID OVERWRITING RECENT PROVISIONS
+          if (!existing || u.credits > (existing.credits || 0) || new Date(u.joinedAt) > new Date(existing.joinedAt)) {
              userMap.set(u.id, u);
           }
         });
@@ -152,7 +152,7 @@ export const storageService = {
         subscribers: storageService.getSubscribers(),
         messages: storageService.getInternalMessages(),
         lastUpdate: new Date().toISOString(),
-        version: '4.1.6-IMMUTABLE-IDENTITY',
+        version: '4.1.7-CREDIT-RELAY-SYNC',
         domain: OFFICIAL_DOMAIN,
         dbNode: DB_NODE_ID,
         dbUser: DB_ADMIN_USER
@@ -217,13 +217,11 @@ export const storageService = {
     const users = storageService.getUsers();
     const updatedUsers = users.map(u => ({
       ...u,
-      // Baseline provisioning logic: Add the free amount if balance is below baseline
       credits: u.credits + (u.country === 'Pakistan' ? 30 : 5)
     }));
     
     localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(updatedUsers));
     
-    // Update current session if the active user was part of the bulk award
     const currentUser = storageService.getCurrentUser();
     const found = updatedUsers.find(u => u.id === currentUser.id);
     if (found) localStorage.setItem(USER_KEY, JSON.stringify(found));
