@@ -16,7 +16,9 @@ import {
   Building2,
   MessageSquare,
   Globe,
-  X
+  X,
+  BadgeCheck,
+  Rocket
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -79,6 +81,8 @@ const Sidebar: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, o
           </div>
           <nav className="flex-1 space-y-1 overflow-y-auto scrollbar-hide">
             <SidebarItem icon={<LayoutDashboard className="w-5 h-5" />} label="Dashboard" to="/" active={isActive('/')} onClick={onClose} />
+            <SidebarItem icon={<Rocket className="w-5 h-5" />} label="Project Promotions" to="/promotions" active={isActive('/promotions')} onClick={onClose} />
+            <SidebarItem icon={<BadgeCheck className="w-5 h-5" />} label="Verified Dealers" to="/dealers" active={isActive('/dealers')} onClick={onClose} />
             <SidebarItem icon={<Building2 className="w-5 h-5" />} label="Premium Homes" to="/homes" active={isActive('/homes')} onClick={onClose} />
             <SidebarItem icon={<Globe className="w-5 h-5" />} label="Institutional Services" to="/services" active={isActive('/services')} onClick={onClose} />
             <SidebarItem icon={<PlusSquare className="w-5 h-5" />} label="Post Listing" to="/post-ad" active={isActive('/post-ad')} onClick={onClose} />

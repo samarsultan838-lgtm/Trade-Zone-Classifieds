@@ -47,3 +47,55 @@ export async function optimizeListingContent(title: string, rawDescription: stri
     return null;
   }
 }
+
+// NEW: Optimize News/Articles for SEO and Readability
+export async function optimizeNewsArticle(title: string, rawContent: string, category: string) {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
+  const prompt = `
+    You are an editor-in-chief for Trazot Global Intelligence. 
+    Topic Category: ${category}
+    Draft Title: ${title}
+    Draft Content: ${rawContent}
+
+    Task:
+    1. Optimize the headline for maximum CTR and SEO keywords related to GCC/South Asia trade.
+    2. Enhance the body text for "Elite Editorial" tone (professional, data-driven, insightful).
+    3. Generate a compelling Meta Description (max 160 chars).
+    4. Create an SEO-friendly slug (e.g., "dubai-real-estate-trends-2025").
+    5. Suggest 5 relevant SEO tags.
+    
+    Return ONLY JSON.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            optimizedTitle: { type: Type.STRING },
+            optimizedContent: { type: Type.STRING },
+            metaDescription: { type: Type.STRING },
+            slug: { type: Type.STRING },
+            tags: { 
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            }
+          },
+          required: ['optimizedTitle', 'optimizedContent', 'metaDescription', 'slug', 'tags'],
+        }
+      }
+    });
+
+    const text = response.text;
+    if (!text) return null;
+    return JSON.parse(text);
+  } catch (error) {
+    console.error("News AI Optimization failed", error);
+    return null;
+  }
+}

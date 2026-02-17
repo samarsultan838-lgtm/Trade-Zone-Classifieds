@@ -1,9 +1,9 @@
-
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, User as UserIcon, ArrowRight, ShieldCheck, Sparkles, AlertTriangle, Loader2, Smartphone } from 'lucide-react';
+import { Mail, Lock, User as UserIcon, ArrowRight, ShieldCheck, Sparkles, AlertTriangle, Loader2, Smartphone, Globe, ChevronDown } from 'lucide-react';
 import { storageService } from '../services/storageService.ts';
 import { User } from '../types.ts';
+import { COUNTRIES } from '../constants.ts';
 
 const Auth: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -13,6 +13,7 @@ const Auth: React.FC = () => {
     name: '',
     email: '',
     phone: '',
+    country: 'Pakistan',
     password: ''
   });
   const navigate = useNavigate();
@@ -23,7 +24,6 @@ const Auth: React.FC = () => {
     setIsLoading(true);
     
     try {
-      // 1. Pre-fetch latest data to ensure registry is up to date
       await storageService.syncWithCloud();
 
       if (isLogin) {
@@ -31,7 +31,6 @@ const Auth: React.FC = () => {
         const found = users.find(u => u.email.toLowerCase() === formData.email.toLowerCase());
         
         if (found) {
-          // In a real app, password verification would happen server-side
           storageService.updateUser(found);
           navigate('/workspace');
         } else if (formData.email === 'guest@trazot.com') {
@@ -41,7 +40,7 @@ const Auth: React.FC = () => {
              email: 'guest@trazot.com',
              isPremium: false,
              tier: 'Free',
-             credits: 5,
+             credits: 30,
              joinedAt: new Date().toISOString()
            });
            navigate('/workspace');
@@ -49,25 +48,30 @@ const Auth: React.FC = () => {
           throw new Error("Merchant credentials not recognized. Please register a verified account.");
         }
       } else {
-        // Registration Flow
         if (!formData.phone || formData.phone.length < 10) {
           throw new Error("A valid contact phone number is required for asset verification.");
         }
 
-        const check = storageService.isIdentifierUsed(formData.email);
-        if (check.used) {
+        const check = storageService.isIdentifierUsed(formData.email, formData.phone);
+        if (check.emailUsed) {
           throw new Error("This email is already associated with an active Trade Node.");
         }
+        if (check.phoneUsed) {
+          throw new Error("This phone number is already registered.");
+        }
+
+        // REGIONAL INITIAL QUOTA PROTOCOL
+        const initialCredits = formData.country === 'Pakistan' ? 30 : 5;
 
         const newUser: User = {
-          // High entropy ID for cloud safety
           id: `node_${Date.now()}_${Math.random().toString(36).substring(7)}`,
           name: formData.name,
           email: formData.email.toLowerCase(),
           phone: formData.phone,
+          country: formData.country,
           isPremium: false,
           tier: 'Free',
-          credits: 5,
+          credits: initialCredits,
           joinedAt: new Date().toISOString()
         };
         
@@ -97,7 +101,7 @@ const Auth: React.FC = () => {
           
           <div className="relative z-10">
             <Link to="/" className="inline-flex items-center gap-3 mb-12">
-               <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-emerald-500/30">
+               <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-emerald-500/30">
                  <Sparkles className="w-6 h-6" />
                </div>
                <span className="text-2xl font-black tracking-tight">Trazot</span>
@@ -108,9 +112,6 @@ const Auth: React.FC = () => {
               <span className="text-emerald-400">Global Trade</span> <br />
               Network.
             </h1>
-            <p className="text-emerald-100/60 text-lg font-light leading-relaxed max-w-sm">
-              Register your legal identity to initiate asset transmission and trade with verified participants.
-            </p>
           </div>
           
           <div className="relative z-10 space-y-6 pt-12 border-t border-white/10">
@@ -124,10 +125,10 @@ const Auth: React.FC = () => {
         <div className="flex-1 p-8 md:p-16 bg-white flex flex-col">
           <div className="mb-10 text-center lg:text-left">
             <h2 className="text-3xl md:text-4xl font-serif-italic text-emerald-950 mb-2">
-              {isLogin ? 'Vault Entry' : 'Merchant Signup'}
+              {isLogin ? 'Log In' : 'Sign Up'}
             </h2>
             <p className="text-gray-400 font-medium">
-              {isLogin ? 'Manage your assets with secure authorization.' : 'Provide verified contact details to receive 5 trade credits.'}
+              {isLogin ? 'Manage your assets with secure authorization.' : 'Register your legal identity to initiate transmissions.'}
             </p>
           </div>
 
@@ -166,17 +167,31 @@ const Auth: React.FC = () => {
             </div>
 
             {!isLogin && (
-              <div className="relative group">
-                <Smartphone className="absolute left-5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-300 group-focus-within:text-emerald-500 transition-colors" />
-                <input 
-                  type="tel" 
-                  required
-                  placeholder="Active Phone Number (e.g. +92...)" 
-                  value={formData.phone}
-                  onChange={e => setFormData(p => ({ ...p, phone: e.target.value }))}
-                  className="w-full bg-gray-50 border border-transparent rounded-[20px] py-4.5 pl-14 pr-6 outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-emerald-950 transition-all" 
-                />
-              </div>
+              <>
+                <div className="relative group">
+                  <Smartphone className="absolute left-5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-300 group-focus-within:text-emerald-500 transition-colors" />
+                  <input 
+                    type="tel" 
+                    required
+                    placeholder="Active Phone Number" 
+                    value={formData.phone}
+                    onChange={e => setFormData(p => ({ ...p, phone: e.target.value }))}
+                    className="w-full bg-gray-50 border border-transparent rounded-[20px] py-4.5 pl-14 pr-6 outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-emerald-950 transition-all" 
+                  />
+                </div>
+
+                <div className="relative group">
+                  <Globe className="absolute left-5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-300 group-focus-within:text-emerald-500 transition-colors" />
+                  <select 
+                    value={formData.country}
+                    onChange={e => setFormData(p => ({ ...p, country: e.target.value }))}
+                    className="w-full bg-gray-50 border border-transparent rounded-[20px] py-4.5 pl-14 pr-10 outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-emerald-950 transition-all appearance-none cursor-pointer"
+                  >
+                    {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-400 pointer-events-none" />
+                </div>
+              </>
             )}
 
             <div className="relative group">
@@ -184,7 +199,7 @@ const Auth: React.FC = () => {
               <input 
                 type="password" 
                 required
-                placeholder="Network Security Password" 
+                placeholder="Security Password" 
                 value={formData.password}
                 onChange={e => setFormData(p => ({ ...p, password: e.target.value }))}
                 className="w-full bg-gray-50 border border-transparent rounded-[20px] py-4.5 pl-14 pr-6 outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-emerald-950 transition-all" 
@@ -196,7 +211,7 @@ const Auth: React.FC = () => {
               disabled={isLoading}
               className="w-full bg-emerald-600 text-white py-5 rounded-[20px] font-black uppercase tracking-[0.2em] text-[11px] shadow-2xl shadow-emerald-600/30 flex items-center justify-center gap-3 transition-all active:scale-[0.98] mt-6 hover:bg-emerald-500 disabled:opacity-50"
             >
-              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : isLogin ? 'Authorize Access' : 'Create Merchant Identity'} 
+              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : isLogin ? 'Log In' : 'Sign Up'} 
               {!isLoading && <ArrowRight className="w-4 h-4" />}
             </button>
           </form>
@@ -208,7 +223,7 @@ const Auth: React.FC = () => {
                 onClick={() => { setIsLogin(!isLogin); setError(null); }} 
                 className="text-emerald-600 font-black uppercase tracking-widest hover:underline ml-2 transition-all"
               >
-                {isLogin ? 'Register Node' : 'Authorize Login'}
+                {isLogin ? 'Sign Up' : 'Log In'}
               </button>
             </p>
           </div>

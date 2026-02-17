@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { X, Send, Sparkles, Loader2, Minus, ChevronUp, Radio } from 'lucide-react';
@@ -29,6 +30,8 @@ const Advertise = lazy(() => import('./pages/Advertise.tsx'));
 const Homes = lazy(() => import('./pages/Homes.tsx'));
 const Messages = lazy(() => import('./pages/Messages.tsx'));
 const Services = lazy(() => import('./pages/Services.tsx'));
+const VerifiedDealers = lazy(() => import('./pages/VerifiedDealers.tsx'));
+const Projects = lazy(() => import('./pages/Projects.tsx'));
 
 const PageLoader = () => (
   <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
@@ -40,7 +43,6 @@ const PageLoader = () => (
 const SEOManager: React.FC<{ lang: Language }> = ({ lang }) => {
   const location = useLocation();
   const t = i18n.get(lang);
-  const prevPathname = useRef(location.pathname);
   const userCountry = locationService.detectUserCountry();
 
   useEffect(() => {
@@ -66,13 +68,6 @@ const SEOManager: React.FC<{ lang: Language }> = ({ lang }) => {
     const metaDescription = document.querySelector('meta[name="description"]');
     if (metaDescription) metaDescription.setAttribute('content', description);
   }, [location.pathname, lang, t, userCountry]);
-
-  useEffect(() => {
-    if (prevPathname.current !== location.pathname) {
-      window.scrollTo(0, 0);
-      prevPathname.current = location.pathname;
-    }
-  }, [location.pathname]);
 
   return null;
 };
@@ -146,14 +141,25 @@ const AIChatbot: React.FC<{ lang: Language, isOpen: boolean, onClose: () => void
 };
 
 const Layout: React.FC<{ children: React.ReactNode; lang: Language; onLangChange: (l: Language) => void; syncStatus: 'syncing' | 'synced' | 'local' | 'error' }> = ({ children, lang, onLangChange, syncStatus }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(sidebarOpen => sidebarOpen); // dummy for update
+  const [sidebarIsOpen, setSidebarIsOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const { pathname } = useLocation();
+  const mainRef = useRef<HTMLElement>(null);
+
+  // CHRONO-SCROLL: Reset position to top on navigation change
+  useEffect(() => {
+    if (mainRef.current) {
+      mainRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [pathname]);
+
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-white" dir={i18n.isRTL(lang) ? 'rtl' : 'ltr'}>
-      <Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} currentLang={lang} onLanguageChange={onLangChange} onOpenChat={() => setChatOpen(true)} syncStatus={syncStatus} />
+      <Navbar onToggleSidebar={() => setSidebarIsOpen(!sidebarIsOpen)} currentLang={lang} onLanguageChange={onLangChange} onOpenChat={() => setChatOpen(true)} syncStatus={syncStatus} />
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <main className="flex-1 overflow-y-auto scrollbar-hide">
+        <Sidebar isOpen={sidebarIsOpen} onClose={() => setSidebarIsOpen(false)} />
+        <main ref={mainRef} className="flex-1 overflow-y-auto scrollbar-hide">
           <div className="max-w-[1600px] mx-auto p-4 md:p-8">
             <Suspense fallback={<PageLoader />}>{children}</Suspense>
           </div>
@@ -170,17 +176,11 @@ const App: React.FC = () => {
   const [syncStatus, setSyncStatus] = useState<'syncing' | 'synced' | 'local' | 'error'>('syncing');
 
   useEffect(() => {
-    // RESOLUTION: Start Background Sync Engine
     storageService.startBackgroundSync();
-    
-    // Listen for storage events to update sync status bar
     const handleStorageUpdate = () => {
-      // Small delay to let local data settle
       setTimeout(() => setSyncStatus('synced'), 500);
     };
-    
     window.addEventListener('storage', handleStorageUpdate);
-    
     return () => {
       storageService.stopBackgroundSync();
       window.removeEventListener('storage', handleStorageUpdate);
@@ -199,6 +199,8 @@ const App: React.FC = () => {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/homes" element={<Homes />} />
+            <Route path="/promotions" element={<Projects />} />
+            <Route path="/dealers" element={<VerifiedDealers />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/listing/:id" element={<ListingDetail />} />
             <Route path="/post-ad" element={<PostAd />} />

@@ -1,5 +1,4 @@
 
-
 export enum CategoryType {
   PROPERTIES = 'Properties',
   VEHICLES = 'Vehicles',
@@ -13,7 +12,6 @@ export enum ListingPurpose {
   WANTED = 'Wanted'
 }
 
-// Added missing properties: UPPER_PORTION, LOWER_PORTION, FARM_HOUSE, ROOM, PLOT_FILE, PLOT_FORM
 export enum PropertyType {
   HOUSE = 'House',
   VILLA = 'Villa',
@@ -51,12 +49,14 @@ export enum AdStatus {
   PENDING = 'Pending',
   ACTIVE = 'Active',
   REJECTED = 'Rejected',
-  SOLD = 'Sold'
+  SOLD = 'Sold',
+  TRASHED = 'Trashed'
 }
 
 export interface Location {
   country: string;
   city: string;
+  society?: string; // Neighborhood/Society/Area filter
   lat?: number;
   lng?: number;
 }
@@ -64,11 +64,47 @@ export interface Location {
 export interface NewsArticle {
   id: string;
   title: string;
+  slug: string;
   content: string;
+  metaDescription: string;
+  tags: string[];
   image: string;
   category: 'Market Trend' | 'Trade Zone News' | 'Expert Advice' | 'Tech Update';
   author: string;
   publishedAt: string;
+  isFeatured?: boolean;
+}
+
+export interface Dealer {
+  id: string;
+  name: string;
+  companyName: string;
+  logo: string;
+  coverImage: string;
+  description: string;
+  specialization: string[];
+  location: Location;
+  isVerified: boolean;
+  contactPhone: string;
+  whatsappNumber: string;
+  email: string;
+  rating: number;
+  joinedAt: string;
+}
+
+export interface ProjectPromotion {
+  id: string;
+  title: string;
+  developerName: string;
+  location: Location;
+  image: string;
+  description: string;
+  priceStart: number;
+  currency: string;
+  isWeeklyFeatured: boolean;
+  packageType: 'Standard' | 'Elite' | 'Project Launch';
+  link: string;
+  createdAt: string;
 }
 
 export interface SavedSearch {
@@ -94,6 +130,7 @@ export interface Listing {
   category: CategoryType;
   purpose: ListingPurpose;
   images: string[];
+  paymentSlip?: string; 
   location: Location;
   status: AdStatus;
   userId: string;
@@ -134,10 +171,12 @@ export interface User {
   name: string;
   email: string;
   phone?: string;
+  country?: string;
   isPremium: boolean;
   tier?: 'Free' | 'Starter' | 'Professional' | 'Elite';
   credits: number;
   joinedAt: string;
+  hasReceivedExhaustionBonus?: boolean; // Flag for one-time 10 credit award after 30 utilized
 }
 
 export interface AnalyticsData {

@@ -1,4 +1,3 @@
-
 User-agent: *
 Allow: /
 Allow: /homes
@@ -9,4 +8,4 @@ Disallow: /admin-access-portal
 Disallow: /workspace
 Disallow: /auth
 
-Sitemap: https://trazot.com/sitemap.xml
+Sitemap: https://www.trazot.com/sitemap.xml

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Globe, 
@@ -14,12 +14,20 @@ import {
   ExternalLink, 
   Container, 
   HardHat, 
-  Settings 
+  Settings,
+  Zap,
+  Loader2,
+  CheckCircle2
 } from 'lucide-react';
 import { Language, i18n } from '../services/i18nService';
+import { storageService } from '../services/storageService';
+import { NewsArticle } from '../types';
 
 const Footer: React.FC<{ lang: Language }> = ({ lang }) => {
   const t = i18n.get(lang);
+  const [email, setEmail] = useState('');
+  const [subscribing, setSubscribing] = useState(false);
+  const [subResult, setSubResult] = useState<{success: boolean, news: NewsArticle[]} | null>(null);
 
   const sections = [
     {
@@ -53,9 +61,27 @@ const Footer: React.FC<{ lang: Language }> = ({ lang }) => {
     }
   ];
 
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !email.includes('@')) return;
+    
+    setSubscribing(true);
+    try {
+      // Simulate network latency for immersion
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      const result = await storageService.subscribeToNewsletter(email);
+      setSubResult({ success: true, news: result.recentNews });
+      setEmail('');
+    } catch (error) {
+      console.error("Subscription failed", error);
+    } finally {
+      setSubscribing(false);
+    }
+  };
+
   return (
     <footer className="bg-emerald-950 pt-12 pb-8 px-6 relative overflow-hidden border-t border-white/5">
-      {/* Immersive Background Visuals - Adjusted for better blending */}
+      {/* Immersive Background Visuals */}
       <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-emerald-500 rounded-full blur-[140px] opacity-[0.06] -translate-y-1/2 translate-x-1/4 pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-emerald-400 rounded-full blur-[120px] opacity-[0.04] translate-y-1/2 -translate-x-1/4 pointer-events-none" />
       
@@ -82,16 +108,48 @@ const Footer: React.FC<{ lang: Language }> = ({ lang }) => {
 
             <div className="space-y-3">
               <h4 className="text-[9px] font-black uppercase tracking-[0.3em] text-emerald-400">Newsletter Protocol</h4>
-              <div className="flex p-1 bg-white/5 border border-white/10 rounded-xl max-w-md backdrop-blur-sm group focus-within:border-emerald-500/50 transition-all shadow-inner">
-                <input 
-                  type="email" 
-                  placeholder="Enter secure email..." 
-                  className="bg-transparent border-none outline-none px-4 py-2 flex-1 text-white text-xs font-medium placeholder:text-white/20"
-                />
-                <button className="bg-emerald-600 text-white px-5 rounded-lg font-black uppercase tracking-widest text-[9px] hover:bg-emerald-500 transition-all">
-                  Join
-                </button>
-              </div>
+              
+              {subResult ? (
+                <div className="animate-in fade-in slide-in-from-top-2 duration-500 space-y-4">
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex items-center gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                    <div>
+                       <p className="text-white text-[10px] font-black uppercase tracking-widest">Protocol Activated</p>
+                       <p className="text-emerald-100/60 text-[9px] font-medium">Automatic News Relay Initialized</p>
+                    </div>
+                  </div>
+                  {subResult.news.length > 0 && (
+                    <div className="space-y-2">
+                       <p className="text-[8px] font-black uppercase text-emerald-400/60 tracking-widest">Recent Briefings Transmitted:</p>
+                       {subResult.news.map(article => (
+                         <div key={article.id} className="flex items-center gap-2 text-white/40 hover:text-white/60 transition-colors cursor-default group">
+                            <Zap className="w-2.5 h-2.5 text-emerald-500" />
+                            <span className="text-[9px] font-bold truncate max-w-[250px]">{article.title}</span>
+                         </div>
+                       ))}
+                    </div>
+                  )}
+                  <button onClick={() => setSubResult(null)} className="text-[8px] font-black uppercase text-emerald-400 hover:text-emerald-300 transition-colors tracking-widest">Add Another Endpoint</button>
+                </div>
+              ) : (
+                <form onSubmit={handleSubscribe} className="flex p-1 bg-white/5 border border-white/10 rounded-xl max-w-md backdrop-blur-sm group focus-within:border-emerald-500/50 transition-all shadow-inner">
+                  <input 
+                    type="email" 
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter secure email..." 
+                    className="bg-transparent border-none outline-none px-4 py-2 flex-1 text-white text-xs font-medium placeholder:text-white/20"
+                  />
+                  <button 
+                    type="submit"
+                    disabled={subscribing}
+                    className="bg-emerald-600 text-white px-5 rounded-lg font-black uppercase tracking-widest text-[9px] hover:bg-emerald-500 transition-all flex items-center gap-2 min-w-[70px] justify-center"
+                  >
+                    {subscribing ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Join'}
+                  </button>
+                </form>
+              )}
             </div>
 
             <div className="flex gap-3 pt-2">

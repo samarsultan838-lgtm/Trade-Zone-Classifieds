@@ -1,8 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
-// Fix: Added MessageCircle to imports
 import { Search, Send, User, ChevronLeft, MoreVertical, Paperclip, Smile, Image as ImageIcon, ShieldCheck, MessageCircle } from 'lucide-react';
-import { storageService } from '../services/storageService';
+import { storageService } from '../services/storageService.ts';
 
 interface ChatMessage {
   id: string;

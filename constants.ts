@@ -39,17 +39,20 @@ export const CITIES: Record<string, string[]> = {
   'Pakistan': [
     'Karachi', 'Lahore', 'Islamabad', 'Faisalabad', 'Rawalpindi', 'Multan', 'Peshawar', 'Quetta', 'Sialkot', 'Gujranwala',
     'Sukkur', 'Bahawalpur', 'Sargodha', 'Larkana', 'Sheikhupura', 'Jhang', 'Rahim Yar Khan', 'Gujrat', 'Kasur', 'Mardan',
-    'Mingora', 'Nawabshah', 'Sahiwal', 'Mirpur Khas', 'Okara', 'Mandi Bahauddin', 'Jacobabad', 'Jhelum', 'Khanewal', 'Muzaffargarh'
+    'Mingora', 'Nawabshah', 'Sahiwal', 'Mirpur Khas', 'Okara', 'Mandi Bahauddin', 'Jacobabad', 'Jhelum', 'Khanewal', 'Muzaffargarh',
+    'Abbottabad', 'Murree', 'Gwadar', 'Hub', 'Attock', 'Chakwal', 'Dera Ghazi Khan', 'Dera Ismail Khan', 'Gilgit', 'Skardu', 'Kotli', 'Mirpur'
   ],
   'India': [
     'Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Ahmedabad', 'Chennai', 'Kolkata', 'Pune', 'Jaipur', 'Lucknow',
     'Kanpur', 'Nagpur', 'Indore', 'Thane', 'Bhopal', 'Visakhapatnam', 'Pimpri-Chinchwad', 'Patna', 'Vadodara', 'Ghaziabad',
-    'Ludhiana', 'Coimbatore', 'Agra', 'Madurai', 'Nashik', 'Vijayawada', 'Faridabad', 'Meerut', 'Rajkot', 'Kalyan-Dombivli'
+    'Ludhiana', 'Coimbatore', 'Agra', 'Madurai', 'Nashik', 'Vijayawada', 'Faridabad', 'Meerut', 'Rajkot', 'Kalyan-Dombivli',
+    'Varanasi', 'Srinagar', 'Aurangabad', 'Dhanbad', 'Amritsar', 'Navi Mumbai', 'Allahabad', 'Howrah', 'Gwalior', 'Jabalpur'
   ],
   'Saudi Arabia': [
     'Riyadh', 'Jeddah', 'Mecca', 'Medina', 'Dammam', 'Ta\'if', 'Tabuk', 'Buraidah', 'Khamis Mushait', 'Abha',
     'Al Khobar', 'Jubail', 'Ha\'il', 'Najran', 'Yanbu', 'Qatif', 'Al Kharj', 'Jizan', 'Al Bahah', 'Sakaka',
-    'Al Mithnab', 'Al-Ula', 'Al-Wajh', 'Arar', 'Dumat al-Jandal', 'Gurayat', 'Hafar Al-Batin', 'Hofuf', 'Khafji', 'Zulfi'
+    'Al Mithnab', 'Al-Ula', 'Al-Wajh', 'Arar', 'Dumat al-Jandal', 'Gurayat', 'Hafar Al-Batin', 'Hofuf', 'Khafji', 'Zulfi',
+    'Rafha', 'Ar Rass', 'Al-Muzahmiyya', 'Afif', 'Al-Hareeq', 'Dhurma'
   ],
   'United Arab Emirates': [
     'Dubai', 'Abu Dhabi', 'Sharjah', 'Al Ain', 'Ajman', 'Ras Al Khaimah', 'Fujairah', 'Umm Al Quwain', 'Khor Fakkan', 'Kalba',
@@ -58,19 +61,23 @@ export const CITIES: Record<string, string[]> = {
   ],
   'Qatar': [
     'Doha', 'Al Rayyan', 'Al Wakrah', 'Al Khor', 'Al Sheehaniya', 'Umm Salal Mohammed', 'Mesaieed', 'Madinat ash Shamal', 'Al Wukair', 'Lusail',
-    'Fuwayrit', 'Dukhan', 'Ar-Ruways', 'Abu Az Zuluf', 'Al Ghuwariyah', 'Al Jumayliyah', 'Al Khawr', 'Al Khaysah', 'Al Thakhira', 'Simaisma'
+    'Fuwayrit', 'Dukhan', 'Ar-Ruways', 'Abu Az Zuluf', 'Al Ghuwariyah', 'Al Jumayliyah', 'Al Khawr', 'Al Khaysah', 'Al Thakhira', 'Simaisma',
+    'Pearl Qatar', 'Education City', 'West Bay'
   ],
   'Kuwait': [
     'Kuwait City', 'Hawally', 'Salmiya', 'Al Farwaniyah', 'Al Fahahil', 'Al Jahra', 'Sabah Al-Salem', 'Mubarak Al-Kabeer', 'Mahboula', 'Jabriya',
-    'Adan', 'Andalous', 'Ardiya', 'Bayan', 'Firdous', 'Granada', 'Jaber Al-Ali', 'Jaber Al-Ahmed', 'Mishref', 'Qurain', 'Rumaithiya', 'Salwa'
+    'Adan', 'Andalous', 'Ardiya', 'Bayan', 'Firdous', 'Granada', 'Jaber Al-Ali', 'Jaber Al-Ahmed', 'Mishref', 'Qurain', 'Rumaithiya', 'Salwa',
+    'Funaitees', 'Egaila', 'Shuwaikh'
   ],
   'Oman': [
     'Muscat', 'Salalah', 'Seeb', 'Bawshar', 'Sohar', 'As Suwayq', 'Ibri', 'Saham', 'Rustaq', 'Nizwa',
-    'Sur', 'Ibra', 'Bahla', 'Khasab', 'Barka', 'Al Khaburah', 'Ad Duqm', 'Al Buraimi', 'Al Hamra', 'Al Jazir', 'Al Kamil Wal Wafi', 'Al Mudhaibi'
+    'Sur', 'Ibra', 'Bahla', 'Khasab', 'Barka', 'Al Khaburah', 'Ad Duqm', 'Al Buraimi', 'Al Hamra', 'Al Jazir', 'Al Kamil Wal Wafi', 'Al Mudhaibi',
+    'Sinaw', 'Thumrait'
   ],
   'Bahrain': [
     'Manama', 'Riffa', 'Muharraq', 'Hamad Town', 'Aali', 'Isa Town', 'Sitra', 'Budaiya', 'Jidhafs', 'Al Hidd',
-    'Adliya', 'Amwaj Islands', 'Bani Jamra', 'Busaiteen', 'Diraz', 'Galali', 'Janabiya', 'Malkiya', 'Saar', 'Sanad', 'Tubli', 'Zallaq'
+    'Adliya', 'Amwaj Islands', 'Bani Jamra', 'Busaiteen', 'Diraz', 'Galali', 'Janabiya', 'Malkiya', 'Saar', 'Sanad', 'Tubli', 'Zallaq',
+    'Durrat Al Bahrain', 'Seef'
   ]
 };
 
@@ -84,7 +91,7 @@ export const INITIAL_LISTINGS: Listing[] = [
     category: CategoryType.PROPERTIES,
     purpose: ListingPurpose.SALE,
     images: ['https://picsum.photos/seed/villa1/800/600'],
-    location: { country: 'Pakistan', city: 'Lahore' },
+    location: { country: 'Pakistan', city: 'Lahore', society: 'DHA Phase 6' },
     status: AdStatus.ACTIVE,
     userId: 'user_1',
     createdAt: new Date().toISOString(),
@@ -104,7 +111,7 @@ export const INITIAL_LISTINGS: Listing[] = [
     category: CategoryType.VEHICLES,
     purpose: ListingPurpose.SALE,
     images: ['https://picsum.photos/seed/car1/800/600'],
-    location: { country: 'United Arab Emirates', city: 'Dubai' },
+    location: { country: 'United Arab Emirates', city: 'Dubai', society: 'Al Quoz' },
     status: AdStatus.ACTIVE,
     userId: 'user_2',
     createdAt: new Date().toISOString(),

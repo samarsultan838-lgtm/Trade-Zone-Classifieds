@@ -1,8 +1,9 @@
 
-import React, { useState } from 'react';
-import { Search, User, Menu, Globe, ChevronDown, Check, Phone, Sparkles, Radio, AlertCircle } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { Language } from '../services/i18nService';
+import React, { useState, useEffect } from 'react';
+import { Search, User, Menu, Globe, ChevronDown, Check, Phone, Sparkles, Radio, AlertCircle, LayoutDashboard } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { Language, i18n } from '../services/i18nService.ts';
+import { storageService } from '../services/storageService.ts';
 
 interface Props {
   onToggleSidebar: () => void;
@@ -14,12 +15,23 @@ interface Props {
 
 const Navbar: React.FC<Props> = ({ onToggleSidebar, currentLang, onLanguageChange, onOpenChat, syncStatus = 'synced' }) => {
   const [isLangOpen, setIsLangOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState(storageService.getCurrentUser());
+  const location = useLocation();
+
+  // Listen for login/logout events to refresh identity button
+  useEffect(() => {
+    const handleStorage = () => setCurrentUser(storageService.getCurrentUser());
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
 
   const languages = [
     { code: 'en' as Language, label: 'English', flag: '🇬🇧' },
     { code: 'ar' as Language, label: 'العربية', flag: '🇸🇦' },
     { code: 'ur' as Language, label: 'اردو', flag: '🇵🇰' }
   ];
+
+  const isLoggedIn = currentUser.email !== 'guest@trazot.com';
 
   return (
     <nav className="sticky top-0 z-50 bg-white border-b border-gray-100 px-4 py-3" aria-label="Main Navigation">
@@ -39,12 +51,12 @@ const Navbar: React.FC<Props> = ({ onToggleSidebar, currentLang, onLanguageChang
                 <div className="w-2 h-2 bg-white rounded-full"></div>
               </div>
             </div>
-            <span className="text-2xl font-black text-emerald-950 tracking-tighter">
+            <span className="text-2xl font-black text-emerald-950 tracking-tighter hidden xs:block">
               Trazot
             </span>
           </Link>
 
-          <div className="hidden md:flex items-center gap-2 ml-4 px-3 py-1 bg-gray-50 rounded-full border border-gray-100" role="status" aria-live="polite">
+          <div className="hidden lg:flex items-center gap-2 ml-4 px-3 py-1 bg-gray-50 rounded-full border border-gray-100" role="status" aria-live="polite">
             <div className={`w-2 h-2 rounded-full ${
               syncStatus === 'syncing' ? 'bg-amber-500 animate-pulse' : 
               syncStatus === 'synced' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' :
@@ -58,7 +70,7 @@ const Navbar: React.FC<Props> = ({ onToggleSidebar, currentLang, onLanguageChang
           </div>
         </div>
 
-        <div className="flex items-center gap-2 md:gap-4">
+        <div className="flex items-center gap-1.5 sm:gap-4">
           <Link 
             to="/contact" 
             className="hidden lg:flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-emerald-950 hover:text-emerald-600 transition-colors"
@@ -73,13 +85,13 @@ const Navbar: React.FC<Props> = ({ onToggleSidebar, currentLang, onLanguageChang
               aria-label="Select Language"
               aria-haspopup="listbox"
               aria-expanded={isLangOpen}
-              className="flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-emerald-50 rounded-xl transition-all border border-gray-100"
+              className="flex items-center gap-2 p-2.5 sm:px-3 sm:py-2 bg-gray-50 hover:bg-emerald-50 rounded-xl transition-all border border-gray-100"
             >
-              <Globe className="w-4 h-4 text-emerald-600" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-950 hidden sm:block">
+              <Globe className="w-5 h-5 sm:w-4 sm:h-4 text-emerald-600" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-950 hidden md:block">
                 {languages.find(l => l.code === currentLang)?.label}
               </span>
-              <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform ${isLangOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform hidden sm:block ${isLangOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {isLangOpen && (
@@ -112,10 +124,10 @@ const Navbar: React.FC<Props> = ({ onToggleSidebar, currentLang, onLanguageChang
           <button 
             onClick={onOpenChat}
             aria-label="Open AI Assistant"
-            className="flex items-center gap-2 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-all border border-emerald-100 group"
+            className="flex items-center gap-2 p-2.5 sm:px-3 sm:py-2 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-all border border-emerald-100 group"
           >
-            <Sparkles className="w-4 h-4 text-emerald-600 group-hover:scale-110 transition-transform" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-900 hidden sm:block">
+            <Sparkles className="w-5 h-5 sm:w-4 sm:h-4 text-emerald-600 group-hover:scale-110 transition-transform" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-900 hidden md:block">
               Assistant
             </span>
           </button>
@@ -124,9 +136,17 @@ const Navbar: React.FC<Props> = ({ onToggleSidebar, currentLang, onLanguageChang
             <Search className="w-5 h-5" />
           </Link>
           
-          <Link to="/auth" className="hidden sm:flex items-center gap-2 bg-emerald-950 text-white px-5 py-2.5 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-emerald-900 transition-all shadow-xl shadow-black/10">
-            <User className="w-4 h-4" />
-            <span>Join Protocol</span>
+          <Link 
+            to={isLoggedIn ? "/workspace" : "/auth"} 
+            className={`flex items-center gap-2 text-white p-2.5 sm:px-5 sm:py-2.5 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all shadow-xl shadow-emerald-950/10 shrink-0 ${
+              isLoggedIn ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-emerald-950 hover:bg-black'
+            }`}
+            title={isLoggedIn ? "Workspace" : "Log In"}
+          >
+            {isLoggedIn ? <LayoutDashboard className="w-5 h-5 sm:w-4 sm:h-4" /> : <User className="w-5 h-5 sm:w-4 sm:h-4" />}
+            <span className="hidden sm:inline">
+              {isLoggedIn ? 'Workspace' : 'Log In'}
+            </span>
           </Link>
         </div>
       </div>
