@@ -4,28 +4,40 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <!-- Security Layer 1: Content Security Policy & Headers -->
+  <!-- SEO Layer 1: Content Security & Authority -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob:; connect-src 'self' https:;">
-  <meta http-equiv="X-Content-Type-Options" content="nosniff">
-  <meta http-equiv="X-Frame-Options" content="DENY">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
   
-  <!-- Primary Meta Tags -->
-  <title>Trazot | Elite Marketplace for Property, Vehicles & Electronics</title>
-  <meta name="title" content="Trazot | Elite Marketplace for Property, Vehicles & Electronics">
-  <meta name="description" content="Trazot is the premier marketplace for high-value assets across South Asia and the Gulf. Buy and sell verified properties, luxury vehicles, and high-end electronics. Official Domain: www.trazot.com.">
+  <!-- Primary Authority Tags -->
+  <title>Trazot | Elite Property, Vehicle & Tech Marketplace</title>
+  <meta name="title" content="Trazot | Elite Property, Vehicle & Tech Marketplace">
+  <meta name="description" content="Trazot is the definitive gateway for high-net-worth assets across GCC and South Asia. Buy verified properties, luxury vehicles, and industrial machinery. Beat the clutter of OLX and Zameen.">
+  <meta name="keywords" content="Real Estate Pakistan, Luxury Cars Dubai, Buy Property Riyadh, Verified Electronics, Trazot Trade Zone, Industrial Machinery Sales">
   <meta name="theme-color" content="#064e3b">
+  
+  <!-- Open Graph / Social SEO -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://www.trazot.com/">
+  <meta property="og:title" content="Trazot | The Sovereign Trade Protocol">
+  <meta property="og:description" content="The most trusted marketplace for verified high-value assets. Trade with institutional security.">
+  <meta property="og:image" content="https://trazot.com/seo-banner.jpg">
+
+  <!-- Twitter SEO -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://www.trazot.com/">
+  <meta property="twitter:title" content="Trazot | Elite Marketplace">
+  <meta property="twitter:description" content="Verified high-value assets across the Gulf and South Asia.">
+  
   <link rel="canonical" href="https://www.trazot.com" />
 
-  <!-- Performance: Preload Critical Assets -->
-  <link rel="preload" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" as="style">
-  <link rel="preload" href="https://images.unsplash.com/photo-1582408921715-18e7806367c1?auto=format&fit=crop&q=80&w=1200" as="image">
-
-  <!-- Resource Hints for Speed -->
+  <!-- Speed & Core Web Vitals -->
+  <link rel="preconnect" href="https://trazot.com">
   <link rel="preconnect" href="https://images.unsplash.com">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  
-  <!-- Leaflet Map CSS Optimized -->
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" as="style">
+
+  <!-- Leaflet Map Optimized -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 
   <style>
@@ -41,17 +53,8 @@
     }
     .scrollbar-hide::-webkit-scrollbar { display: none; }
     .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-    
-    /* Accessibility: Clear Focus States */
-    button:focus-visible, a:focus-visible {
-      outline: 2px solid #10b981;
-      outline-offset: 2px;
-    }
-
-    /* Performance: Prevent Layout Shift */
+    button:focus-visible, a:focus-visible { outline: 2px solid #10b981; outline-offset: 2px; }
     .image-container { background-color: #f3f4f6; position: relative; overflow: hidden; aspect-ratio: 4/3; }
-    
-    /* Rendering Optimization */
     section { content-visibility: auto; contain-intrinsic-size: 0 500px; }
   </style>
 

@@ -33,7 +33,8 @@ import {
   Clock,
   User as UserIcon,
   ArrowRight,
-  Loader2
+  Loader2,
+  Globe
 } from 'lucide-react';
 import { storageService } from '../services/storageService.ts';
 import { AdStatus, Listing, CategoryType, InternalMessage } from '../types.ts';
@@ -61,6 +62,38 @@ const ListingDetail: React.FC = () => {
     if (foundListing) {
       setListing(foundListing);
       window.scrollTo(0, 0);
+
+      // SEO DOMINANCE: Inject Individual Product Schema
+      const script = document.createElement('script');
+      script.type = 'application/ld+json';
+      script.id = 'listing-schema';
+      script.text = JSON.stringify({
+        "@context": "https://schema.org/",
+        "@type": foundListing.category === 'Properties' ? "RealEstateListing" : "Product",
+        "name": foundListing.title,
+        "image": foundListing.images,
+        "description": foundListing.description,
+        "brand": foundListing.details.make || "Trazot Elite",
+        "offers": {
+          "@type": "Offer",
+          "priceCurrency": foundListing.currency,
+          "price": foundListing.price,
+          "availability": "https://schema.org/InStock"
+        },
+        "location": {
+          "@type": "Place",
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": foundListing.location.city,
+            "addressCountry": foundListing.location.country
+          }
+        }
+      });
+      document.head.appendChild(script);
+      return () => {
+        const old = document.getElementById('listing-schema');
+        if (old) document.head.removeChild(old);
+      };
     } else {
       setListing(null);
     }
@@ -95,7 +128,7 @@ const ListingDetail: React.FC = () => {
       setShowInternalChat(false);
       navigate('/messages');
     } catch (e) {
-      alert("Transmission failed. Re-initialize node.");
+      alert("Transmission failed. Node sync interrupted.");
     } finally {
       setIsSending(false);
     }
@@ -128,7 +161,7 @@ const ListingDetail: React.FC = () => {
           <div className="flex-1 space-y-6">
             <div className="flex items-center gap-3">
               <div className="px-3 py-1.5 bg-emerald-50 border border-emerald-100 rounded-full text-[9px] font-black uppercase tracking-widest text-emerald-600 flex items-center gap-2">
-                <ShieldCheck className="w-3.5 h-3.5" /> Verified Intelligence Packet
+                <ShieldCheck className="w-3.5 h-3.5" /> Institutional Asset Node
               </div>
               <span className="text-[10px] font-black uppercase text-gray-300 tracking-widest">{listing.id}</span>
             </div>
@@ -151,12 +184,12 @@ const ListingDetail: React.FC = () => {
             <div className="bg-gray-50/50 rounded-[48px] p-8 md:p-12 border border-gray-100">
                <div className="grid grid-cols-2 md:grid-cols-3 gap-10">
                  {[
-                   { icon: <Maximize />, label: 'Dimensions', value: listing.details.area || 'Standard' },
+                   { icon: <Maximize />, label: 'Dimensions', value: listing.details.area || 'Verified' },
                    { icon: <Layers />, label: 'Asset Class', value: listing.category },
-                   { icon: <ShieldCheck />, label: 'Verification', value: listing.isVerified ? 'Elite Level' : 'Standard' },
-                   { icon: <Smartphone />, label: 'Lead Source', value: 'Trade Zone Node' },
+                   { icon: <ShieldCheck />, label: 'Merchant Credibility', value: listing.isVerified ? 'Elite Node' : 'Standard' },
+                   { icon: <Smartphone />, label: 'Verification', value: 'Trade Zone Protocol' },
                    { icon: <Package />, label: 'Condition', value: listing.details.condition || 'Verified' },
-                   { icon: <Clock />, label: 'Joined Node', value: new Date(listing.createdAt).toLocaleDateString() }
+                   { icon: <Clock />, label: 'Synchronization', value: new Date(listing.createdAt).toLocaleDateString() }
                  ].map((spec, i) => (
                    <div key={i} className="space-y-3">
                       <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm">{spec.icon}</div>
@@ -173,14 +206,14 @@ const ListingDetail: React.FC = () => {
               <h3 className="text-xl font-bold mb-8 flex items-center gap-3"><MessageCircle className="text-emerald-400" /> Merchant Interface</h3>
               <div className="space-y-4 relative z-10">
                  <button disabled={isSold || isTrashed || listing.userId === currentUser.id} onClick={handleInternalChatInit} className="w-full py-5 bg-white text-emerald-950 rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-xl hover:scale-[1.02] transition-all flex items-center justify-center gap-3 disabled:opacity-50">
-                    <Zap className="w-5 h-5 text-emerald-600 fill-emerald-600" /> Chat on Trazot
+                    <Zap className="w-5 h-5 text-emerald-600 fill-emerald-600" /> Secure Chat
                  </button>
                  <div className="h-px bg-white/10 my-4" />
                  <button disabled={isSold || isTrashed} onClick={() => window.open(`https://wa.me/${listing.whatsappNumber?.replace(/\D/g, '')}`)} className="w-full py-5 bg-[#25D366] text-white rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-xl flex items-center justify-center gap-3 disabled:opacity-50">
                    <MessageCircle className="w-5 h-5 fill-current" /> WhatsApp Relay
                  </button>
                  <button disabled={isSold || isTrashed} onClick={() => window.location.href = `tel:${listing.contactPhone}`} className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest shadow-xl flex items-center justify-center gap-3 disabled:opacity-50">
-                   <Phone className="w-5 h-5 fill-current" /> Initialize Voice
+                   <Phone className="w-5 h-5 fill-current" /> Voice Call
                  </button>
               </div>
             </div>
@@ -194,11 +227,11 @@ const ListingDetail: React.FC = () => {
               <button onClick={() => setShowInternalChat(false)} className="absolute top-8 right-8 p-2 bg-gray-100 rounded-full hover:bg-red-50 hover:text-red-500 transition-all"><X className="w-6 h-6" /></button>
               <div className="text-center mb-8">
                  <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 mx-auto mb-6"><Zap className="w-8 h-8" /></div>
-                 <h3 className="text-3xl font-serif-italic text-emerald-950 mb-2">Secure Link</h3>
-                 <p className="text-gray-400 font-medium text-sm">Initiating transmission with <strong>{listing.contactEmail.split('@')[0]}</strong> regarding <strong>{listing.title}</strong></p>
+                 <h3 className="text-3xl font-serif-italic text-emerald-950 mb-2">Establish Link</h3>
+                 <p className="text-gray-400 font-medium text-sm">Transmitting to <strong>Verified Node</strong> regarding <strong>{listing.title}</strong></p>
               </div>
               <form onSubmit={handleSendInternal} className="space-y-6">
-                 <textarea required value={chatMessage} onChange={e => setChatMessage(e.target.value)} rows={5} placeholder="Compose your technical inquiry..." className="w-full bg-gray-50 rounded-[32px] p-8 font-medium outline-none border-2 border-transparent focus:border-emerald-500 transition-all leading-relaxed" />
+                 <textarea required value={chatMessage} onChange={e => setChatMessage(e.target.value)} rows={5} placeholder="Draft your professional inquiry..." className="w-full bg-gray-50 rounded-[32px] p-8 font-medium outline-none border-2 border-transparent focus:border-emerald-500 transition-all leading-relaxed" />
                  <button type="submit" disabled={isSending} className="w-full bg-emerald-600 text-white py-6 rounded-2xl font-black uppercase tracking-widest text-xs shadow-2xl flex items-center justify-center gap-3">
                    {isSending ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Send className="w-5 h-5" /> Authorize Transmission</>}
                  </button>

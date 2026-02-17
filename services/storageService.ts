@@ -15,8 +15,7 @@ const MESSAGES_KEY = 'tz_internal_messages';
 
 /** 
  * HOSTINGER PRODUCTION NODE CONFIGURATION 
- * Domain: trazot.com
- * Database: u550128434_trazot_db
+ * Matching Screenshot: u550128434
  */
 export const OFFICIAL_DOMAIN = 'trazot.com';
 export const MASTER_EMERGENCY_KEY = 'TRAZOT-MASTER-2025-RECOVERY-NODE';
@@ -56,8 +55,7 @@ export const storageService = {
   getBackendHealth: async () => {
     const start = performance.now();
     try {
-      // Check your Hostinger API status
-      const res = await fetch(CLOUD_NODE_URL, { method: 'HEAD' });
+      const res = await fetch(`${CLOUD_NODE_URL}?action=ping`, { method: 'GET' });
       const latency = performance.now() - start;
       return { 
         status: res.ok ? 'Healthy' : 'Degraded', 
@@ -90,7 +88,9 @@ export const storageService = {
       });
       if (!response.ok) return 'local';
       const result = await response.json();
-      const cloudData = result.data;
+      
+      // Handle the standardized PHP response structure
+      const cloudData = result.data || result;
 
       if (cloudData) {
         const resolveCollection = (localKey: string, cloudArray: any[], identifier: string = 'id', timeKey: string = 'createdAt') => {
@@ -99,6 +99,7 @@ export const storageService = {
           const mergedMap = new Map();
           
           [...cloudArray, ...local].forEach(item => {
+            if (!item || !item[identifier]) return;
             const existing = mergedMap.get(item[identifier]);
             if (!existing || new Date(item[timeKey]) > new Date(existing[timeKey])) {
               mergedMap.set(item[identifier], item);
@@ -107,12 +108,13 @@ export const storageService = {
           localStorage.setItem(localKey, JSON.stringify(Array.from(mergedMap.values())));
         };
 
-        resolveCollection(LISTINGS_KEY, cloudData.listings || [], 'id', 'createdAt');
+        if (cloudData.listings) resolveCollection(LISTINGS_KEY, cloudData.listings, 'id', 'createdAt');
         
         const remoteUsers = cloudData.users || [];
         const localUsers = JSON.parse(localStorage.getItem(USERS_REGISTRY_KEY) || '[]');
         const userMap = new Map();
         [...remoteUsers, ...localUsers].forEach(u => {
+          if (!u || !u.id) return;
           const existing = userMap.get(u.id);
           if (!existing || u.credits > (existing.credits || 0) || new Date(u.joinedAt) > new Date(existing.joinedAt)) {
              userMap.set(u.id, u);
@@ -135,7 +137,10 @@ export const storageService = {
         window.dispatchEvent(new Event('storage'));
       }
       return 'synced';
-    } catch { return 'local'; }
+    } catch (e) { 
+      console.warn("Node sync fallback to local storage.", e);
+      return 'local'; 
+    }
   },
 
   broadcastToCloud: async () => {
@@ -149,8 +154,7 @@ export const storageService = {
         subscribers: storageService.getSubscribers(),
         messages: storageService.getInternalMessages(),
         lastUpdate: new Date().toISOString(),
-        version: '5.0.0-HOSTINGER-DB-PROD',
-        domain: OFFICIAL_DOMAIN,
+        version: '5.1.0-HOSTINGER-RELAY',
         dbNode: DB_NODE_ID,
         dbUser: DB_ADMIN_USER
       };
