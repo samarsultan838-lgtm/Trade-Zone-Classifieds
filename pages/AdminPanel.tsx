@@ -57,7 +57,9 @@ import {
   Ghost,
   UserCheck,
   Gift,
-  MailSearch
+  MailSearch,
+  Clock,
+  History as HistoryIcon
 } from 'lucide-react';
 import { storageService, MASTER_EMERGENCY_KEY, OFFICIAL_DOMAIN } from '../services/storageService.ts';
 import { Listing, NewsArticle, User as UserType, AdStatus, Dealer, ProjectPromotion } from '../types.ts';
@@ -86,6 +88,7 @@ const AdminPanel: React.FC = () => {
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [awardAmount, setAwardAmount] = useState<number>(5);
   const [isAwarding, setIsAwarding] = useState<string | null>(null);
+  const [isBulkAwarding, setIsBulkAwarding] = useState(false);
 
   const [newsForm, setNewsForm] = useState({
     title: '',
@@ -97,9 +100,6 @@ const AdminPanel: React.FC = () => {
     author: 'Bureau Chief'
   });
 
-  /**
-   * ALIGNED WITH HOSTINGER SCREENSHOT: u550128434
-   */
   const dbConfig = { 
     user: 'u550128434_trazot_admin', 
     db: 'u550128434_trazot_db', 
@@ -155,6 +155,18 @@ const AdminPanel: React.FC = () => {
     setView('login');
   };
 
+  const handleBulkAward = async () => {
+    if (!confirm('Provision baseline quotas (30/5) to ALL registered users?')) return;
+    setIsBulkAwarding(true);
+    try {
+      const count = await storageService.bulkProvisionCredits();
+      setUsers(storageService.getUsers());
+      alert(`Synchronized ${count} network nodes with baseline credits.`);
+    } finally {
+      setIsBulkAwarding(false);
+    }
+  };
+
   const handleAward = async (userId: string) => {
     setIsAwarding(userId);
     try {
@@ -187,37 +199,6 @@ const AdminPanel: React.FC = () => {
     setNews(storageService.getNews());
     setShowNewsModal(false);
     setNewsForm({ title: '', category: 'Market Trend', image: '', content: '', metaDescription: '', tags: '', author: 'Bureau Chief' });
-  };
-
-  const handleAIEnhanceNews = async () => {
-    if (!newsForm.title || !newsForm.content) {
-      alert("Please provide a title and content for the AI to analyze.");
-      return;
-    }
-    setIsOptimizing(true);
-    try {
-      const result = await optimizeNewsArticle(newsForm.title, newsForm.content, newsForm.category);
-      if (result) {
-        setNewsForm(prev => ({
-          ...prev,
-          title: result.optimizedTitle,
-          content: result.optimizedContent,
-          metaDescription: result.metaDescription,
-          tags: result.tags.join(', ')
-        }));
-      }
-    } catch (error) {
-      console.error("AI news optimization failed", error);
-    } finally {
-      setIsOptimizing(false);
-    }
-  };
-
-  const handleDeleteNews = async (id: string) => {
-    if (confirm('Permanently redact this briefing?')) {
-      await storageService.deleteNews(id);
-      setNews(storageService.getNews());
-    }
   };
 
   const handleApprove = async (id: string) => {
@@ -307,7 +288,7 @@ const AdminPanel: React.FC = () => {
           { id: 'listings', label: 'Ledger Oversight', icon: Layers },
           { id: 'news', label: 'Editorial Office', icon: Newspaper },
           { id: 'security', label: 'Threat Center', icon: ShieldAlert },
-          { id: 'users', label: 'Network Citizens', icon: UsersIcon },
+          { id: 'users', label: 'Permanent Citizen Ledger', icon: UsersIcon },
           { id: 'subscribers', label: 'Subscribers', icon: MailSearch }
         ].map((tab) => (
           <button 
@@ -322,6 +303,75 @@ const AdminPanel: React.FC = () => {
 
       <div className="bg-white rounded-[32px] md:rounded-[56px] p-6 md:p-16 border border-gray-100 shadow-sm min-h-[500px]">
         
+        {subView === 'users' && (
+           <div className="space-y-12 animate-in fade-in duration-500">
+              <div className="pb-8 border-b border-gray-50 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                <div>
+                  <div className="flex items-center gap-3 mb-2">
+                    <h2 className="text-2xl md:text-3xl font-serif-italic text-emerald-950">Permanent Citizen <span className="text-emerald-600">Ledger</span></h2>
+                    <div className="px-3 py-1 bg-red-50 text-red-600 text-[8px] font-black uppercase tracking-widest rounded-lg border border-red-100 flex items-center gap-1.5">
+                      <Lock className="w-3 h-3" /> Deletion Prohibited
+                    </div>
+                  </div>
+                  <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mt-1">Immutable registry of authorized trade nodes</p>
+                </div>
+                <button 
+                  onClick={handleBulkAward}
+                  disabled={isBulkAwarding}
+                  className="px-6 py-4 bg-emerald-950 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-3 hover:bg-black transition-all shadow-xl disabled:opacity-50"
+                >
+                  {isBulkAwarding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gift className="w-4 h-4 text-emerald-400" />}
+                  Synchronize Credit Provisions
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                 {users.map(u => (
+                    <div key={u.id} className="bg-gray-50 rounded-3xl p-8 border border-gray-100 hover:bg-white hover:shadow-xl transition-all group relative overflow-hidden">
+                       {u.id.includes('google') && (
+                          <div className="absolute top-4 right-4" title="Verified via Google">
+                             <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-4 h-4 grayscale opacity-40 group-hover:grayscale-0 group-hover:opacity-100 transition-all" alt="Google" />
+                          </div>
+                       )}
+                       <div className="flex items-start justify-between mb-6">
+                          <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-600 font-black text-xl shadow-inner">
+                             {u.name.charAt(0)}
+                          </div>
+                          <div className="text-right">
+                             <p className="text-[10px] font-black uppercase text-emerald-600">{u.country || 'Global'}</p>
+                             <div className="text-2xl font-black text-emerald-950 mt-1">{u.credits}</div>
+                             <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Balance</p>
+                          </div>
+                       </div>
+                       <div className="mb-8">
+                          <h4 className="text-lg font-bold text-emerald-950 truncate">{u.name}</h4>
+                          <p className="text-xs text-gray-400 truncate">{u.email}</p>
+                          <div className="mt-4 flex items-center gap-2 text-[8px] font-black uppercase tracking-widest text-emerald-700/50">
+                             <Calendar className="w-3 h-3" /> Anchored: {new Date(u.joinedAt).toLocaleDateString()}
+                          </div>
+                       </div>
+                       
+                       <div className="pt-6 border-t border-gray-100 flex items-center gap-2">
+                          <input 
+                            type="number" 
+                            defaultValue={5}
+                            onChange={e => setAwardAmount(Number(e.target.value))}
+                            className="w-16 bg-white border border-gray-200 rounded-xl p-3 text-xs font-black text-center outline-none focus:border-emerald-500" 
+                          />
+                          <button 
+                            onClick={() => handleAward(u.id)}
+                            disabled={!!isAwarding}
+                            className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-black uppercase text-[9px] tracking-widest hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-600/10 flex items-center justify-center gap-2"
+                          >
+                             {isAwarding === u.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Provision Credits'}
+                          </button>
+                       </div>
+                    </div>
+                 ))}
+              </div>
+           </div>
+        )}
+
         {subView === 'subscribers' && (
            <div className="space-y-8 md:space-y-12 animate-in fade-in duration-500">
               <div className="pb-8 border-b border-gray-50 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -399,10 +449,33 @@ const AdminPanel: React.FC = () => {
            </div>
         )}
 
-        {/* ... Rest of subviews remain unchanged ... */}
         {subView === 'listings' && (
            <div className="space-y-12 animate-in fade-in duration-500">
-              {/* Previous logic for listings Oversight */}
+              <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm">
+                <h2 className="text-xl font-bold mb-8 flex items-center gap-3">
+                  <Clock className="w-5 h-5 text-yellow-500" /> 
+                  Pending Approval ({listings.filter(l => l.status === AdStatus.PENDING).length})
+                </h2>
+                <div className="space-y-4">
+                  {listings.filter(l => l.status === AdStatus.PENDING).map(l => (
+                    <div key={l.id} className="flex flex-col sm:flex-row items-center justify-between p-5 bg-gray-50 rounded-3xl gap-4 hover:bg-gray-100 transition-colors">
+                      <div className="flex items-center gap-4 w-full sm:w-auto">
+                        <img src={l.images[0]} className="w-20 h-20 rounded-2xl object-cover shadow-sm" />
+                        <div>
+                          <h4 className="font-extrabold text-sm text-emerald-950">{l.title}</h4>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{l.category} • {l.location.city}</p>
+                          <div className="text-emerald-600 font-black text-xs mt-1">{l.currency} {l.price.toLocaleString()}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                        <Link to={`/listing/${l.id}`} className="p-3 bg-white text-gray-400 rounded-2xl hover:text-emerald-600 shadow-sm transition-all"><Eye className="w-5 h-5" /></Link>
+                        <button onClick={() => handleApprove(l.id)} className="p-3 bg-emerald-100 text-emerald-700 rounded-2xl hover:bg-emerald-600 hover:text-white shadow-sm transition-all"><CheckCircle className="w-5 h-5" /></button>
+                        <button onClick={() => handleReject(l.id)} className="p-3 bg-red-100 text-red-700 rounded-2xl hover:bg-red-600 hover:text-white shadow-sm transition-all"><XCircle className="w-5 h-5" /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
            </div>
         )}
       </div>

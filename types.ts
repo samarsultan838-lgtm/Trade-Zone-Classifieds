@@ -56,7 +56,7 @@ export enum AdStatus {
 export interface Location {
   country: string;
   city: string;
-  society?: string; // Neighborhood/Society/Area filter
+  society?: string;
   lat?: number;
   lng?: number;
 }
@@ -121,6 +121,17 @@ export interface SavedSearch {
   createdAt: string;
 }
 
+export interface InternalMessage {
+  id: string;
+  listingId: string;
+  listingTitle: string;
+  senderId: string;
+  senderName: string;
+  receiverId: string;
+  text: string;
+  timestamp: string;
+}
+
 export interface Listing {
   id: string;
   title: string;
@@ -176,7 +187,7 @@ export interface User {
   tier?: 'Free' | 'Starter' | 'Professional' | 'Elite';
   credits: number;
   joinedAt: string;
-  hasReceivedExhaustionBonus?: boolean; // Flag for one-time 10 credit award after 30 utilized
+  hasReceivedExhaustionBonus?: boolean;
 }
 
 export interface AnalyticsData {

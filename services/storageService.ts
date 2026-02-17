@@ -1,4 +1,4 @@
-import { Listing, User, AdStatus, NewsArticle, SavedSearch, Dealer, ProjectPromotion } from '../types.ts';
+import { Listing, User, AdStatus, NewsArticle, SavedSearch, Dealer, ProjectPromotion, InternalMessage } from '../types.ts';
 import { INITIAL_LISTINGS } from '../constants.ts';
 
 const LISTINGS_KEY = 'tz_listings';
@@ -11,6 +11,7 @@ const ADMIN_CRED_KEY = 'tz_admin_cred';
 const SAVED_SEARCHES_KEY = 'tz_saved_searches';
 const SECURITY_LOGS_KEY = 'tz_security_logs';
 const SUBSCRIBERS_KEY = 'tz_newsletter_subscribers';
+const MESSAGES_KEY = 'tz_internal_messages';
 
 /** 
  * HOSTINGER NODE CONFIGURATION 
@@ -95,19 +96,33 @@ export const storageService = {
           const stored = localStorage.getItem(localKey);
           const local = stored ? JSON.parse(stored) : [];
           const mergedMap = new Map();
+          
+          // FOR CITIZEN REGISTRY: Append-only logic. Once a user ID exists, it is never removed.
           [...cloudArray, ...local].forEach(item => {
             const existing = mergedMap.get(item[identifier]);
-            if (!existing || new Date(item[timeKey]) > new Date(existing[timeKey])) mergedMap.set(item[identifier], item);
+            if (!existing || new Date(item[timeKey]) > new Date(existing[timeKey])) {
+              mergedMap.set(item[identifier], item);
+            }
           });
           localStorage.setItem(localKey, JSON.stringify(Array.from(mergedMap.values())));
         };
 
         resolveCollection(LISTINGS_KEY, cloudData.listings || [], 'id', 'createdAt');
+        // STRICT PERMANENCE FOR USER REGISTRY
         resolveCollection(USERS_REGISTRY_KEY, cloudData.users || [], 'id', 'joinedAt');
+        
         if (cloudData.news) localStorage.setItem(NEWS_KEY, JSON.stringify(cloudData.news));
         if (cloudData.dealers) localStorage.setItem(DEALERS_KEY, JSON.stringify(cloudData.dealers));
         if (cloudData.promotions) localStorage.setItem(PROMOTIONS_KEY, JSON.stringify(cloudData.promotions));
         if (cloudData.subscribers) localStorage.setItem(SUBSCRIBERS_KEY, JSON.stringify(cloudData.subscribers));
+        if (cloudData.messages) localStorage.setItem(MESSAGES_KEY, JSON.stringify(cloudData.messages));
+        
+        const localUser = storageService.getCurrentUser();
+        if (localUser.id !== 'guest') {
+          const updatedUser = (cloudData.users || []).find((u: User) => u.id === localUser.id);
+          if (updatedUser) localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+        }
+
         window.dispatchEvent(new Event('storage'));
       }
       return 'synced';
@@ -123,8 +138,9 @@ export const storageService = {
         dealers: storageService.getDealers(),
         promotions: storageService.getPromotions(),
         subscribers: storageService.getSubscribers(),
+        messages: storageService.getInternalMessages(),
         lastUpdate: new Date().toISOString(),
-        version: '4.1.0-HOSTINGER-SYNC',
+        version: '4.1.5-PERMANENT-NODES',
         domain: OFFICIAL_DOMAIN,
         dbNode: DB_NODE_ID,
         dbUser: DB_ADMIN_USER
@@ -138,20 +154,70 @@ export const storageService = {
     } catch { return false; }
   },
 
-  getSubscribers: (): string[] => {
-    const stored = localStorage.getItem(SUBSCRIBERS_KEY);
-    return stored ? JSON.parse(stored) : [];
+  setCurrentUser: (user: User) => {
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    window.dispatchEvent(new Event('storage'));
   },
 
-  subscribeToNewsletter: async (email: string): Promise<{ success: boolean; recentNews: NewsArticle[] }> => {
-    const subscribers = storageService.getSubscribers();
-    const sanitizedEmail = email.toLowerCase().trim();
-    if (!subscribers.includes(sanitizedEmail)) {
-      subscribers.push(sanitizedEmail);
-      localStorage.setItem(SUBSCRIBERS_KEY, JSON.stringify(subscribers));
+  updateUser: async (user: User) => {
+    const currentUser = storageService.getCurrentUser();
+    if (currentUser.id === user.id) localStorage.setItem(USER_KEY, JSON.stringify(user));
+    
+    if (user.email !== 'guest@trazot.com') {
+      const users = storageService.getUsers();
+      const idx = users.findIndex(u => u.id === user.id);
+      if (idx !== -1) users[idx] = user; else users.push(user);
+      localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(users));
+      window.dispatchEvent(new Event('storage'));
       await storageService.broadcastToCloud();
     }
-    return { success: true, recentNews: storageService.getNews().slice(0, 3) };
+  },
+
+  getCurrentUser: (): User => {
+    const stored = localStorage.getItem(USER_KEY);
+    return stored ? JSON.parse(stored) : { id: 'guest', name: 'Guest', email: 'guest@trazot.com', isPremium: false, credits: 0, joinedAt: '' };
+  },
+
+  getUsers: (): User[] => {
+    const stored = localStorage.getItem(USERS_REGISTRY_KEY);
+    try {
+      const users = stored ? JSON.parse(stored) : [];
+      // Admin filter: Never return core admin or system guest in standard list
+      return users.filter((u: User) => u.email !== 'merchant@gmail.com' && u.email !== 'guest@trazot.com');
+    } catch { return []; }
+  },
+
+  awardCredits: async (userId: string, amount: number) => {
+    if (amount > 50) throw new Error("Maximum provision limit exceeded.");
+    const users = storageService.getUsers();
+    const idx = users.findIndex(u => u.id === userId);
+    if (idx !== -1) {
+      users[idx].credits += amount;
+      localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(users));
+      const currentUser = storageService.getCurrentUser();
+      if (currentUser.id === userId) localStorage.setItem(USER_KEY, JSON.stringify(users[idx]));
+      window.dispatchEvent(new Event('storage'));
+      await storageService.broadcastToCloud();
+      return true;
+    }
+    return false;
+  },
+
+  bulkProvisionCredits: async () => {
+    const users = storageService.getUsers();
+    const updatedUsers = users.map(u => ({
+      ...u,
+      credits: u.credits + (u.country === 'Pakistan' ? 30 : 5)
+    }));
+    localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(updatedUsers));
+    
+    const currentUser = storageService.getCurrentUser();
+    const found = updatedUsers.find(u => u.id === currentUser.id);
+    if (found) localStorage.setItem(USER_KEY, JSON.stringify(found));
+    
+    window.dispatchEvent(new Event('storage'));
+    await storageService.broadcastToCloud();
+    return updatedUsers.length;
   },
 
   getListings: (): Listing[] => {
@@ -173,12 +239,8 @@ export const storageService = {
     
     if (existingIndex === -1) {
       const user = storageService.getCurrentUser();
-      
-      // REGIONAL PRICING PROTOCOL
       const isPakistan = listing.location.country === 'Pakistan';
-      const cost = listing.featured 
-        ? (isPakistan ? 10 : 2) 
-        : (isPakistan ? 5 : 1);
+      const cost = listing.featured ? (isPakistan ? 10 : 2) : (isPakistan ? 5 : 1);
       
       if (user.id !== 'guest' && user.id !== 'user_guest') {
         if (user.credits < cost) {
@@ -186,11 +248,9 @@ export const storageService = {
         }
         user.credits -= cost;
 
-        // AUTOMATIC EXHAUSTION BONUS: Award 10 after full utilization of initial quota
         if (user.credits === 0 && !user.hasReceivedExhaustionBonus) {
           user.credits = 10;
           user.hasReceivedExhaustionBonus = true;
-          storageService.security.logThreat('Exhaustion Bonus', `User ${user.email} received 10 Credit injection.`);
         }
         await storageService.updateUser(user);
       }
@@ -203,72 +263,17 @@ export const storageService = {
     await storageService.broadcastToCloud();
   },
 
-  deleteListing: async (id: string) => {
-    const listings = storageService.getListings();
-    const idx = listings.findIndex(l => l.id === id);
-    if (idx !== -1) {
-      listings[idx].status = AdStatus.TRASHED;
-      listings[idx].createdAt = new Date().toISOString(); 
-      localStorage.setItem(LISTINGS_KEY, JSON.stringify(listings));
-      window.dispatchEvent(new Event('storage'));
-      await storageService.broadcastToCloud();
-    }
+  getInternalMessages: (): InternalMessage[] => {
+    const stored = localStorage.getItem(MESSAGES_KEY);
+    try { return stored ? JSON.parse(stored) : []; } catch { return []; }
   },
 
-  purgeListing: async (id: string) => {
-    const listings = storageService.getListings().filter(l => l.id !== id);
-    localStorage.setItem(LISTINGS_KEY, JSON.stringify(listings));
+  sendInternalMessage: async (msg: InternalMessage) => {
+    const messages = storageService.getInternalMessages();
+    messages.push(msg);
+    localStorage.setItem(MESSAGES_KEY, JSON.stringify(messages));
     window.dispatchEvent(new Event('storage'));
     await storageService.broadcastToCloud();
-  },
-
-  restoreListing: async (id: string) => {
-    const listings = storageService.getListings();
-    const idx = listings.findIndex(l => l.id === id);
-    if (idx !== -1) {
-      listings[idx].status = AdStatus.PENDING; 
-      listings[idx].createdAt = new Date().toISOString();
-      localStorage.setItem(LISTINGS_KEY, JSON.stringify(listings));
-      window.dispatchEvent(new Event('storage'));
-      await storageService.broadcastToCloud();
-    }
-  },
-
-  getUsers: (): User[] => {
-    const stored = localStorage.getItem(USERS_REGISTRY_KEY);
-    try {
-      const users = stored ? JSON.parse(stored) : [];
-      return users.filter((u: User) => u.email !== 'merchant@gmail.com' && u.email !== 'guest@trazot.com');
-    } catch { return []; }
-  },
-
-  updateUser: async (user: User) => {
-    const currentUser = storageService.getCurrentUser();
-    if (currentUser.id === user.id) localStorage.setItem(USER_KEY, JSON.stringify(user));
-    if (user.email !== 'guest@trazot.com') {
-      const users = storageService.getUsers();
-      const idx = users.findIndex(u => u.id === user.id);
-      if (idx !== -1) users[idx] = user; else users.push(user);
-      localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(users));
-      window.dispatchEvent(new Event('storage'));
-      await storageService.broadcastToCloud();
-    }
-  },
-
-  awardCredits: async (userId: string, amount: number) => {
-    if (amount > 10) throw new Error("Maximum provision limit: 10 Credits per cycle.");
-    const users = storageService.getUsers();
-    const idx = users.findIndex(u => u.id === userId);
-    if (idx !== -1) {
-      users[idx].credits += amount;
-      localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(users));
-      const currentUser = storageService.getCurrentUser();
-      if (currentUser.id === userId) localStorage.setItem(USER_KEY, JSON.stringify(users[idx]));
-      window.dispatchEvent(new Event('storage'));
-      await storageService.broadcastToCloud();
-      return true;
-    }
-    return false;
   },
 
   getDealers: (): Dealer[] => {
@@ -352,8 +357,50 @@ export const storageService = {
     } catch { return { emailUsed: false, phoneUsed: false }; }
   },
 
-  getCurrentUser: (): User => {
-    const stored = localStorage.getItem(USER_KEY);
-    return stored ? JSON.parse(stored) : { id: 'guest', name: 'Guest', email: 'guest@trazot.com', isPremium: false, credits: 0, joinedAt: '' };
+  getSubscribers: (): string[] => {
+    const stored = localStorage.getItem(SUBSCRIBERS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  },
+
+  subscribeToNewsletter: async (email: string): Promise<{ success: boolean; recentNews: NewsArticle[] }> => {
+    const subscribers = storageService.getSubscribers();
+    const sanitizedEmail = email.toLowerCase().trim();
+    if (!subscribers.includes(sanitizedEmail)) {
+      subscribers.push(sanitizedEmail);
+      localStorage.setItem(SUBSCRIBERS_KEY, JSON.stringify(subscribers));
+      await storageService.broadcastToCloud();
+    }
+    return { success: true, recentNews: storageService.getNews().slice(0, 3) };
+  },
+
+  deleteListing: async (id: string) => {
+    const listings = storageService.getListings();
+    const idx = listings.findIndex(l => l.id === id);
+    if (idx !== -1) {
+      listings[idx].status = AdStatus.TRASHED;
+      listings[idx].createdAt = new Date().toISOString(); 
+      localStorage.setItem(LISTINGS_KEY, JSON.stringify(listings));
+      window.dispatchEvent(new Event('storage'));
+      await storageService.broadcastToCloud();
+    }
+  },
+
+  purgeListing: async (id: string) => {
+    const listings = storageService.getListings().filter(l => l.id !== id);
+    localStorage.setItem(LISTINGS_KEY, JSON.stringify(listings));
+    window.dispatchEvent(new Event('storage'));
+    await storageService.broadcastToCloud();
+  },
+
+  restoreListing: async (id: string) => {
+    const listings = storageService.getListings();
+    const idx = listings.findIndex(l => l.id === id);
+    if (idx !== -1) {
+      listings[idx].status = AdStatus.PENDING; 
+      listings[idx].createdAt = new Date().toISOString();
+      localStorage.setItem(LISTINGS_KEY, JSON.stringify(listings));
+      window.dispatchEvent(new Event('storage'));
+      await storageService.broadcastToCloud();
+    }
   }
 };

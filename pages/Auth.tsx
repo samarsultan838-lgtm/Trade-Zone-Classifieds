@@ -18,6 +18,34 @@ const Auth: React.FC = () => {
   });
   const navigate = useNavigate();
 
+  const handleGoogleAuth = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // Simulate Google OAuth Delay
+      await new Promise(r => setTimeout(r, 1200));
+      
+      const googleUser: User = {
+        id: `node_google_${Date.now()}`,
+        name: "Verified Merchant (Google)",
+        email: "verified.merchant@gmail.com",
+        isPremium: false,
+        tier: 'Free',
+        credits: 30, // Default for new permanent node
+        joinedAt: new Date().toISOString(),
+        country: 'Pakistan'
+      };
+
+      await storageService.updateUser(googleUser);
+      storageService.setCurrentUser(googleUser);
+      navigate('/workspace');
+    } catch (err: any) {
+      setError("Google authorization node unreachable.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -31,18 +59,19 @@ const Auth: React.FC = () => {
         const found = users.find(u => u.email.toLowerCase() === formData.email.toLowerCase());
         
         if (found) {
-          storageService.updateUser(found);
+          storageService.setCurrentUser(found);
           navigate('/workspace');
         } else if (formData.email === 'guest@trazot.com') {
-           storageService.updateUser({
+           const guest = {
              id: 'user_guest',
              name: 'Guest Merchant',
              email: 'guest@trazot.com',
              isPremium: false,
-             tier: 'Free',
+             tier: 'Free' as any,
              credits: 30,
              joinedAt: new Date().toISOString()
-           });
+           };
+           storageService.setCurrentUser(guest);
            navigate('/workspace');
         } else {
           throw new Error("Merchant credentials not recognized. Please register a verified account.");
@@ -75,7 +104,9 @@ const Auth: React.FC = () => {
           joinedAt: new Date().toISOString()
         };
         
+        // Save to registry and establish current session
         await storageService.updateUser(newUser);
+        storageService.setCurrentUser(newUser);
         navigate('/workspace');
       }
     } catch (err: any) {
@@ -138,6 +169,21 @@ const Auth: React.FC = () => {
                <p className="text-[10px] font-bold uppercase tracking-widest leading-relaxed">{error}</p>
             </div>
           )}
+
+          <div className="mb-8">
+            <button 
+              onClick={handleGoogleAuth}
+              disabled={isLoading}
+              className="w-full flex items-center justify-center gap-4 py-4.5 bg-white border border-gray-100 rounded-2xl font-bold text-gray-700 hover:bg-gray-50 transition-all shadow-sm active:scale-[0.98] disabled:opacity-50"
+            >
+              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />
+              Continue with Google
+            </button>
+            <div className="relative my-8 text-center">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div>
+              <span className="relative px-4 bg-white text-[10px] font-black uppercase text-gray-300 tracking-[0.2em]">OR SECURE FORM</span>
+            </div>
+          </div>
 
           <form onSubmit={handleAuth} className="space-y-4">
             {!isLogin && (

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Plus,
   Search,
@@ -26,11 +26,11 @@ import {
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { storageService } from '../services/storageService.ts';
-import { AdStatus, Listing, SavedSearch } from '../types.ts';
+import { AdStatus, Listing, SavedSearch, User } from '../types.ts';
 
 const Workspace: React.FC = () => {
   const navigate = useNavigate();
-  const user = storageService.getCurrentUser();
+  const [user, setUser] = useState<User>(storageService.getCurrentUser());
   const allListings = storageService.getListings();
   const myListings = useMemo(() => allListings.filter(l => l.userId === user.id), [allListings, user.id]);
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>(storageService.getSavedSearches());
@@ -39,6 +39,15 @@ const Workspace: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'easypaisa' | 'usdt'>('easypaisa');
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    const handleStorage = () => {
+      setUser(storageService.getCurrentUser());
+      setSavedSearches(storageService.getSavedSearches());
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
 
   const tabs = [
     { id: AdStatus.ACTIVE, label: 'Active' },
@@ -150,7 +159,7 @@ const Workspace: React.FC = () => {
             <span className="text-[11px] sm:text-sm font-bold opacity-80 uppercase tracking-widest">Available Trade Credits</span>
             <div className="text-5xl sm:text-6xl font-black text-[#ffda00] mb-4">{user.credits}</div>
             <div className="text-[10px] sm:text-xs font-medium text-emerald-100/60 leading-relaxed max-w-lg space-y-2">
-              <p>Node Status: Active • Registration Node: {user.country}</p>
+              <p>Node Status: Active • Registration Node: {user.country || 'Not Defined'}</p>
               <div className="grid grid-cols-2 gap-4 pt-2 border-t border-white/10">
                 <div>
                    <p className="text-emerald-400 font-black uppercase">Pakistan Hub</p>

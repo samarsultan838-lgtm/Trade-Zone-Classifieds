@@ -1,182 +1,164 @@
-
-import React, { useState, useMemo } from 'react';
-import { Search, Send, User, ChevronLeft, MoreVertical, Paperclip, Smile, Image as ImageIcon, ShieldCheck, MessageCircle } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { Search, Send, User, ChevronLeft, MoreVertical, Paperclip, Smile, Image as ImageIcon, ShieldCheck, MessageCircle, Zap, Loader2 } from 'lucide-react';
 import { storageService } from '../services/storageService.ts';
-
-interface ChatMessage {
-  id: string;
-  senderId: string;
-  text: string;
-  timestamp: string;
-}
-
-interface Conversation {
-  id: string;
-  participant: {
-    name: string;
-    avatar: string;
-    isVerified: boolean;
-  };
-  lastMessage: string;
-  time: string;
-  unread: number;
-}
+import { InternalMessage, User as UserType } from '../types.ts';
+import { useNavigate } from 'react-router-dom';
 
 const Messages: React.FC = () => {
-  const [selectedChat, setSelectedChat] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const currentUser = useMemo(() => storageService.getCurrentUser(), []);
+  const [messages, setMessages] = useState<InternalMessage[]>([]);
+  const [selectedConvoId, setSelectedConvoId] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState('');
-  
-  const conversations: Conversation[] = [
-    { id: 'c1', participant: { name: 'Faisal Property Hub', avatar: 'https://i.pravatar.cc/150?u=faisal', isVerified: true }, lastMessage: 'The villa is available for viewing on Saturday.', time: '10:42 AM', unread: 2 },
-    { id: 'c2', participant: { name: 'Luxury Motors UAE', avatar: 'https://i.pravatar.cc/150?u=luxury', isVerified: true }, lastMessage: 'We can arrange a test drive for the G63.', time: 'Yesterday', unread: 0 },
-    { id: 'c3', participant: { name: 'Saad Ahmed', avatar: 'https://i.pravatar.cc/150?u=saad', isVerified: false }, lastMessage: 'What is the final price for the iPhone 15?', time: '2 days ago', unread: 0 },
-  ];
+  const [search, setSearch] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const [activeMessages, setActiveMessages] = useState<ChatMessage[]>([
-    { id: 'm1', senderId: 'other', text: 'Hi, I saw your listing for the DHA Villa.', timestamp: '10:30 AM' },
-    { id: 'm2', senderId: 'me', text: 'Hello! Yes, it is currently available.', timestamp: '10:32 AM' },
-    { id: 'm3', senderId: 'other', text: 'The villa is available for viewing on Saturday.', timestamp: '10:42 AM' },
-  ]);
-
-  const handleSendMessage = () => {
-    if (!messageInput.trim()) return;
-    const newMsg: ChatMessage = {
-      id: Date.now().toString(),
-      senderId: 'me',
-      text: messageInput,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  useEffect(() => {
+    if (currentUser.id === 'guest') navigate('/auth?reason=msg_auth');
+    
+    const refreshData = () => {
+      setMessages(storageService.getInternalMessages());
     };
-    setActiveMessages([...activeMessages, newMsg]);
+    refreshData();
+    window.addEventListener('storage', refreshData);
+    return () => window.removeEventListener('storage', refreshData);
+  }, [currentUser.id, navigate]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, selectedConvoId]);
+
+  // GROUP MESSAGES INTO CONVERSATIONS
+  const conversations = useMemo(() => {
+    const convoMap = new Map<string, {
+      participantId: string;
+      participantName: string;
+      listingId: string;
+      listingTitle: string;
+      lastMessage: string;
+      timestamp: string;
+      unread: number;
+    }>();
+
+    messages.forEach(m => {
+      const isMeSender = m.senderId === currentUser.id;
+      const partnerId = isMeSender ? m.receiverId : m.senderId;
+      const partnerName = isMeSender ? 'Merchant Node' : m.senderName;
+      // Keyed by partner + listing to keep context clear
+      const convoKey = `${partnerId}_${m.listingId}`;
+
+      const existing = convoMap.get(convoKey);
+      if (!existing || new Date(m.timestamp) > new Date(existing.timestamp)) {
+        convoMap.set(convoKey, {
+          participantId: partnerId,
+          participantName: partnerName,
+          listingId: m.listingId,
+          listingTitle: m.listingTitle,
+          lastMessage: m.text,
+          timestamp: m.timestamp,
+          unread: 0 
+        });
+      }
+    });
+
+    return Array.from(convoMap.entries()).map(([id, data]) => ({ id, ...data }))
+      .filter(c => c.participantName.toLowerCase().includes(search.toLowerCase()) || c.listingTitle.toLowerCase().includes(search.toLowerCase()))
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }, [messages, currentUser.id, search]);
+
+  const activeConvo = useMemo(() => conversations.find(c => c.id === selectedConvoId), [conversations, selectedConvoId]);
+
+  const activeMessages = useMemo(() => {
+    if (!activeConvo) return [];
+    return messages.filter(m => 
+      (m.senderId === currentUser.id && m.receiverId === activeConvo.participantId && m.listingId === activeConvo.listingId) ||
+      (m.senderId === activeConvo.participantId && m.receiverId === currentUser.id && m.listingId === activeConvo.listingId)
+    ).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  }, [messages, activeConvo, currentUser.id]);
+
+  const handleSendMessage = async () => {
+    if (!messageInput.trim() || !activeConvo) return;
+
+    const newMsg: InternalMessage = {
+      id: `msg_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+      listingId: activeConvo.listingId,
+      listingTitle: activeConvo.listingTitle,
+      senderId: currentUser.id,
+      senderName: currentUser.name,
+      receiverId: activeConvo.participantId,
+      text: messageInput,
+      timestamp: new Date().toISOString()
+    };
+
+    await storageService.sendInternalMessage(newMsg);
     setMessageInput('');
   };
 
-  const activeChat = useMemo(() => conversations.find(c => c.id === selectedChat), [selectedChat]);
-
   return (
     <div className="h-[calc(100vh-140px)] flex bg-white rounded-[40px] shadow-3xl border border-emerald-50 overflow-hidden animate-in fade-in duration-500">
-      
-      {/* Sidebar: Conversation List */}
-      <div className={`w-full md:w-80 lg:w-96 border-r border-emerald-50 flex flex-col ${selectedChat ? 'hidden md:flex' : 'flex'}`}>
+      <div className={`w-full md:w-80 lg:w-96 border-r border-emerald-50 flex flex-col ${selectedConvoId ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-6 border-b border-emerald-50">
-          <h2 className="text-2xl font-serif-italic text-emerald-950 mb-6">Messages</h2>
+          <h2 className="text-2xl font-serif-italic text-emerald-950 mb-6">Trade Transmissions</h2>
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input 
-              type="text" 
-              placeholder="Search conversations..." 
-              className="w-full bg-gray-50 rounded-2xl py-3 pl-12 pr-4 text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-            />
+            <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Filter intelligence..." className="w-full bg-gray-50 rounded-2xl py-3 pl-12 pr-4 text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500" />
           </div>
         </div>
-        
         <div className="flex-1 overflow-y-auto scrollbar-hide">
-          {conversations.map((chat) => (
-            <button 
-              key={chat.id}
-              onClick={() => setSelectedChat(chat.id)}
-              className={`w-full p-6 flex items-start gap-4 transition-all hover:bg-emerald-50/50 text-left border-b border-emerald-50/50 ${selectedChat === chat.id ? 'bg-emerald-50' : ''}`}
-            >
-              <div className="relative shrink-0">
-                <img src={chat.participant.avatar} className="w-12 h-12 rounded-2xl object-cover" alt="" />
-                {chat.unread > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-600 text-white text-[9px] font-black flex items-center justify-center rounded-full border-2 border-white">
-                    {chat.unread}
-                  </span>
-                )}
-              </div>
+          {conversations.length > 0 ? conversations.map((convo) => (
+            <button key={convo.id} onClick={() => setSelectedConvoId(convo.id)} className={`w-full p-6 flex items-start gap-4 transition-all hover:bg-emerald-50/50 text-left border-b border-emerald-50/50 ${selectedConvoId === convo.id ? 'bg-emerald-50' : ''}`}>
+              <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-600 font-black shrink-0 shadow-sm">{convo.participantName.charAt(0)}</div>
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-center mb-1">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="font-bold text-emerald-950 truncate">{chat.participant.name}</span>
-                    {chat.participant.isVerified && <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
-                  </div>
-                  <span className="text-[10px] text-gray-400 font-bold whitespace-nowrap">{chat.time}</span>
+                  <span className="font-bold text-emerald-950 truncate">{convo.participantName}</span>
+                  <span className="text-[9px] text-gray-400 font-bold uppercase whitespace-nowrap">{new Date(convo.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                 </div>
-                <p className="text-xs text-gray-500 line-clamp-1 font-medium">{chat.lastMessage}</p>
+                <p className="text-[9px] font-black uppercase text-emerald-600 mb-1 truncate">{convo.listingTitle}</p>
+                <p className="text-xs text-gray-400 line-clamp-1 font-medium italic">"{convo.lastMessage}"</p>
               </div>
             </button>
-          ))}
+          )) : (
+            <div className="p-12 text-center text-gray-400 text-xs font-bold uppercase tracking-widest opacity-50">No Active Transmissions</div>
+          )}
         </div>
       </div>
 
-      {/* Main Chat Window */}
-      <div className={`flex-1 flex flex-col bg-gray-50/30 ${!selectedChat ? 'hidden md:flex' : 'flex'}`}>
-        {selectedChat && activeChat ? (
+      <div className={`flex-1 flex flex-col bg-gray-50/30 ${!selectedConvoId ? 'hidden md:flex' : 'flex'}`}>
+        {selectedConvoId && activeConvo ? (
           <>
-            {/* Chat Header */}
             <div className="p-5 bg-white border-b border-emerald-50 flex items-center justify-between shadow-sm">
               <div className="flex items-center gap-4">
-                <button onClick={() => setSelectedChat(null)} className="md:hidden p-2 text-gray-400 hover:text-emerald-600 transition-colors">
-                  <ChevronLeft className="w-6 h-6" />
-                </button>
-                <img src={activeChat.participant.avatar} className="w-10 h-10 rounded-xl object-cover shadow-sm" alt="" />
+                <button onClick={() => setSelectedConvoId(null)} className="md:hidden p-2 text-gray-400 hover:text-emerald-600"><ChevronLeft className="w-6 h-6" /></button>
+                <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 font-black">P</div>
                 <div>
-                  <div className="flex items-center gap-1.5">
-                    <h3 className="font-bold text-emerald-950">{activeChat.participant.name}</h3>
-                    {activeChat.participant.isVerified && <ShieldCheck className="w-4 h-4 text-emerald-500" />}
-                  </div>
-                  <span className="text-[10px] font-black uppercase text-emerald-600 tracking-widest">Active Now</span>
+                  <div className="flex items-center gap-1.5"><h3 className="font-bold text-emerald-950">{activeConvo.participantName}</h3><ShieldCheck className="w-4 h-4 text-emerald-500" /></div>
+                  <span className="text-[10px] font-black uppercase text-emerald-600 tracking-widest">Listing: {activeConvo.listingTitle}</span>
                 </div>
               </div>
-              <button className="p-2.5 text-gray-400 hover:bg-gray-100 rounded-xl transition-all">
-                <MoreVertical className="w-5 h-5" />
-              </button>
             </div>
-
-            {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
               {activeMessages.map((msg) => (
-                <div key={msg.id} className={`flex ${msg.senderId === 'me' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[70%] space-y-1.5 ${msg.senderId === 'me' ? 'items-end' : 'items-start'}`}>
-                    <div className={`px-6 py-4 rounded-[28px] text-sm leading-relaxed shadow-sm font-medium ${
-                      msg.senderId === 'me' 
-                      ? 'bg-emerald-600 text-white rounded-br-none' 
-                      : 'bg-white text-emerald-950 rounded-bl-none'
-                    }`}>
-                      {msg.text}
-                    </div>
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest px-2">{msg.timestamp}</span>
+                <div key={msg.id} className={`flex ${msg.senderId === currentUser.id ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[75%] space-y-1.5 ${msg.senderId === currentUser.id ? 'items-end' : 'items-start'}`}>
+                    <div className={`px-6 py-4 rounded-[28px] text-sm leading-relaxed shadow-sm font-medium ${msg.senderId === currentUser.id ? 'bg-emerald-600 text-white rounded-br-none' : 'bg-white text-emerald-950 rounded-bl-none'}`}>{msg.text}</div>
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest px-2">{new Date(msg.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
                   </div>
                 </div>
               ))}
+              <div ref={messagesEndRef} />
             </div>
-
-            {/* Input Footer */}
             <div className="p-6 bg-white border-t border-emerald-50">
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1">
-                  <button className="p-2.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"><Paperclip className="w-5 h-5" /></button>
-                  <button className="p-2.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"><ImageIcon className="w-5 h-5" /></button>
-                </div>
-                <div className="flex-1 relative">
-                  <input 
-                    type="text" 
-                    placeholder="Type your message..." 
-                    value={messageInput}
-                    onChange={(e) => setMessageInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                    className="w-full bg-gray-50 rounded-2xl py-4 px-6 pr-12 outline-none text-sm font-medium focus:ring-2 focus:ring-emerald-500 transition-all border-none"
-                  />
-                  <button className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-yellow-500 transition-all">
-                    <Smile className="w-5 h-5" />
-                  </button>
-                </div>
-                <button 
-                  onClick={handleSendMessage}
-                  className="w-12 h-12 bg-emerald-600 text-white rounded-2xl flex items-center justify-center shadow-xl shadow-emerald-600/20 hover:scale-105 active:scale-95 transition-all"
-                >
-                  <Send className="w-5 h-5" />
-                </button>
+                <input type="text" value={messageInput} onChange={(e) => setMessageInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} placeholder="Type your message..." className="flex-1 bg-gray-50 rounded-2xl py-4 px-6 outline-none text-sm font-medium focus:ring-2 focus:ring-emerald-500 transition-all" />
+                <button onClick={handleSendMessage} className="w-12 h-12 bg-emerald-600 text-white rounded-2xl flex items-center justify-center shadow-xl hover:scale-105 active:scale-95 transition-all"><Send className="w-5 h-5" /></button>
               </div>
             </div>
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-emerald-50/20">
-            <div className="w-24 h-24 bg-white rounded-[32px] flex items-center justify-center text-emerald-100 shadow-sm mb-6">
-              <MessageCircle className="w-12 h-12" />
-            </div>
-            <h3 className="text-2xl font-serif-italic text-emerald-950 mb-2">Your Conversations</h3>
-            <p className="text-gray-400 max-w-xs font-medium">Select a conversation from the left to start trading securely with verified participants.</p>
+            <div className="w-24 h-24 bg-white rounded-[32px] flex items-center justify-center text-emerald-100 shadow-sm mb-6"><MessageCircle className="w-12 h-12" /></div>
+            <h3 className="text-2xl font-serif-italic text-emerald-950 mb-2">Secure Message Node</h3>
+            <p className="text-gray-400 max-w-xs font-medium">Select a conversation to begin high-fidelity trade communication.</p>
           </div>
         )}
       </div>
