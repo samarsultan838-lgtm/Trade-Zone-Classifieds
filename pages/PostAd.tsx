@@ -16,6 +16,7 @@ import {
   Globe,
   HelpCircle,
   CheckSquare,
+  Square,
   ShieldCheck,
   Sliders,
   TrendingUp,
@@ -44,11 +45,11 @@ import {
   Palette,
   HardDrive
 } from 'lucide-react';
-import { CategoryType, ListingPurpose, AdStatus, Listing, PropertyType, AreaUnit } from '../types.ts';
-import { storageService } from '../services/storageService.ts';
-import { processImage, getShortLink } from '../services/imageService.ts';
-import { optimizeListingContent } from '../services/geminiService.ts';
-import { COUNTRIES, CITIES } from '../constants.ts';
+import { CategoryType, ListingPurpose, AdStatus, Listing, PropertyType, AreaUnit } from '../types';
+import { storageService } from '../services/storageService';
+import { processImage, getShortLink } from '../services/imageService';
+import { optimizeListingContent } from '../services/geminiService';
+import { COUNTRIES, CITIES } from '../constants';
 
 const MAX_IMAGES = 10;
 
@@ -140,7 +141,7 @@ export default function PostAd() {
     // Vehicle specifics
     make: '',
     model: '',
-    year: new Date().getFullYear(),
+    year: String(new Date().getFullYear()),
     mileage: '',
     transmission: 'Automatic',
     fuelType: 'Petrol',
@@ -234,7 +235,7 @@ export default function PostAd() {
         } : category === CategoryType.VEHICLES ? {
           make: formData.make,
           model: formData.model,
-          year: Number(formData.year),
+          year: Number(formData.year) || new Date().getFullYear(),
           mileage: Number(formData.mileage),
           transmission: formData.transmission,
           fuelType: formData.fuelType,

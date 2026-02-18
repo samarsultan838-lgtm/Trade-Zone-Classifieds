@@ -25,10 +25,18 @@ import {
   RefreshCw,
   Trash2,
   Coins,
-  ArrowRight
+  ArrowRight,
+  Plus,
+  X,
+  Upload,
+  Sparkles,
+  EyeOff,
+  Image as ImageIcon
 } from 'lucide-react';
-import { storageService, MASTER_EMERGENCY_KEY, OFFICIAL_DOMAIN } from '../services/storageService.ts';
-import { NewsArticle, AdStatus, Listing, User } from '../types.ts';
+import { storageService, MASTER_EMERGENCY_KEY, OFFICIAL_DOMAIN } from '../services/storageService';
+import { processImage } from '../services/imageService';
+import { optimizeNewsArticle } from '../services/geminiService';
+import { NewsArticle, AdStatus, Listing, User } from '../types';
 import { Link } from 'react-router-dom';
 
 type AdminViewState = 'login' | 'setup' | 'forgot' | 'dashboard';
@@ -49,6 +57,15 @@ const AdminPanel: React.FC = () => {
   const [dbHealth, setDbHealth] = useState<any>({ status: 'Standby...', latency: 0, db_status: 'Ready' });
   const [globalCreditAmount, setGlobalCreditAmount] = useState('50');
 
+  const [showNewsModal, setShowNewsModal] = useState(false);
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [newsForm, setNewsForm] = useState({
+    title: '',
+    category: 'Market Trend' as NewsArticle['category'],
+    image: '',
+    content: ''
+  });
+
   useEffect(() => {
     const creds = storageService.getAdminAuth();
     if (!creds) setView('setup');
@@ -59,17 +76,13 @@ const AdminPanel: React.FC = () => {
   }, []);
 
   const initializeDashboard = async () => {
-    const currentListings = storageService.getListings();
-    const currentUsers = storageService.getUsers();
-    const currentNews = storageService.getNews();
-    setListings(currentListings);
-    setUsers(currentUsers);
-    setNews(currentNews);
+    setListings(storageService.getListings());
+    setUsers(storageService.getUsers());
+    setNews(storageService.getNews());
     storageService.getBackendHealth().then(health => setDbHealth(health));
     setView('dashboard');
   };
 
-  // Add handleSetup to process initial admin credential creation
   const handleSetup = (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordInput.length < 6) return alert('Password must be at least 6 characters.');
@@ -138,13 +151,86 @@ const AdminPanel: React.FC = () => {
     }
   };
 
+  const handleUnlist = async (id: string) => {
+    if (confirm('Unlist this asset from public registry?')) {
+      await storageService.unlistListing(id);
+      setListings(storageService.getListings());
+    }
+  };
+
+  const handleDeleteListing = async (id: string) => {
+    if (confirm('Permanently delete listing node? This cannot be undone.')) {
+      await storageService.deleteListing(id);
+      setListings(storageService.getListings());
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const optimized = await processImage(file, 'news');
+      setNewsForm(p => ({ ...p, image: optimized }));
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleAIOptimize = async () => {
+    if (!newsForm.title || !newsForm.content) return alert('Enter headline and content first.');
+    setIsOptimizing(true);
+    try {
+      const result = await optimizeNewsArticle(newsForm.title, newsForm.content, newsForm.category);
+      if (result) {
+        setNewsForm(p => ({
+          ...p,
+          title: result.optimizedTitle,
+          content: result.optimizedContent
+        }));
+        alert('AI Optimization Applied: Enhanced headline and structure.');
+      }
+    } catch (e) {
+      alert('Optimization relay failed.');
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
+
+  const handleCreateNews = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newsForm.image) return alert('Asset banner required.');
+    
+    const newArticle: NewsArticle = {
+      id: Math.random().toString(36).substring(7),
+      ...newsForm,
+      slug: newsForm.title.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, ''),
+      metaDescription: newsForm.content.substring(0, 150) + '...',
+      tags: ['Trazot', newsForm.category],
+      author: 'Bureau Editorial',
+      publishedAt: new Date().toISOString()
+    };
+    storageService.saveNews(newArticle);
+    setNews(storageService.getNews());
+    setShowNewsModal(false);
+    setNewsForm({ title: '', category: 'Market Trend', image: '', content: '' });
+  };
+
+  // Fix: Added missing handleDeleteNews handler
+  const handleDeleteNews = async (id: string) => {
+    if (confirm('Delete article?')) {
+      await storageService.deleteNews(id);
+      setNews(storageService.getNews());
+    }
+  };
+
+  // Fix: Added missing handleAwardGlobal handler
   const handleAwardGlobal = async () => {
     const amount = parseInt(globalCreditAmount);
-    if (isNaN(amount) || amount <= 0) return alert('Invalid allocation quantity.');
-    if (confirm(`Authorize global injection of ${amount} Trade Credits to ${users.length} verified nodes?`)) {
+    if (isNaN(amount)) return alert('Invalid amount.');
+    if (confirm(`Award ${amount} credits to ALL users?`)) {
       await storageService.awardGlobalCredits(amount);
       setUsers(storageService.getUsers());
-      alert('Global Pulse Complete: Credits Provisioned.');
+      alert('Global credit injection successful.');
     }
   };
 
@@ -218,6 +304,9 @@ const AdminPanel: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-4">
+          <button onClick={() => setShowNewsModal(true)} className="px-6 py-4 bg-emerald-100 text-emerald-700 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-3 hover:bg-emerald-600 hover:text-white transition-all border border-emerald-200">
+             <Newspaper className="w-4 h-4" /> Publish News
+          </button>
           <button onClick={handleLogout} className="px-6 py-4 bg-red-50 text-red-600 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-3 hover:bg-red-100 transition-all border border-red-100 shadow-sm shadow-red-100"><LogOut className="w-4 h-4" /> Log Out</button>
         </div>
       </header>
@@ -254,59 +343,155 @@ const AdminPanel: React.FC = () => {
 
         {subView === 'listings' && (
            <div className="space-y-12 animate-in fade-in duration-500">
-              <h3 className="text-3xl font-serif-italic text-emerald-950 flex items-center gap-4"><Clock className="w-8 h-8 text-yellow-500" /> Awaiting Authorization</h3>
-              <div className="grid grid-cols-1 gap-6">
-                 {listings.filter(l => l.status === AdStatus.PENDING).map(l => (
-                   <div key={l.id} className="flex flex-col lg:flex-row items-center justify-between p-8 bg-gray-50 rounded-[40px] hover:bg-gray-100 hover:shadow-xl transition-all duration-500 gap-8 group border border-transparent hover:border-emerald-100">
-                      <div className="flex items-center gap-8 w-full lg:w-auto"><img src={l.images[0]} className="w-24 h-24 rounded-3xl object-cover shadow-2xl" /><div><h5 className="font-black text-emerald-950 text-lg mb-1">{l.title}</h5><p className="text-[10px] font-black uppercase text-emerald-600 tracking-[0.2em]">{l.category} • {l.location.city}</p><div className="text-emerald-950 font-black text-sm mt-2">{l.currency} {l.price.toLocaleString()}</div></div></div>
-                      <div className="flex gap-3 w-full lg:w-auto justify-end"><Link to={`/listing/${l.id}`} className="p-4 bg-white text-gray-400 rounded-2xl hover:text-emerald-600 transition-all"><Eye className="w-6 h-6" /></Link><button onClick={() => handleApprove(l.id)} className="flex-1 lg:flex-none flex items-center justify-center gap-3 px-8 py-4 bg-emerald-100 text-emerald-700 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-emerald-600 hover:text-white transition-all"><CheckCircle className="w-5 h-5" /> Approve</button><button onClick={() => handleReject(l.id)} className="flex-1 lg:flex-none flex items-center justify-center gap-3 px-8 py-4 bg-red-50 text-red-700 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-red-600 hover:text-white transition-all"><XCircle className="w-5 h-5" /> Reject</button></div>
-                   </div>
-                 ))}
-                 {listings.filter(l => l.status === AdStatus.PENDING).length === 0 && (
-                   <div className="text-center py-32 bg-emerald-50/20 rounded-[56px] border-2 border-dashed border-emerald-100"><ShieldCheck className="w-20 h-20 text-emerald-200 mx-auto mb-8 animate-pulse" /><h4 className="text-2xl font-bold text-emerald-950 mb-2">Global Ledger Clear</h4></div>
-                 )}
+              <h3 className="text-3xl font-serif-italic text-emerald-950 flex items-center gap-4"><Layers className="w-8 h-8 text-emerald-600" /> Administrative Ledger</h3>
+              
+              <div className="grid grid-cols-1 gap-8">
+                 {/* Section: Pending Authorizations */}
+                 <div className="space-y-6">
+                    <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-600 flex items-center gap-2"><Clock className="w-3.5 h-3.5" /> Awaiting Protocol Approval</h4>
+                    {listings.filter(l => l.status === AdStatus.PENDING).map(l => (
+                      <div key={l.id} className="flex flex-col lg:flex-row items-center justify-between p-8 bg-amber-50/30 rounded-[40px] border border-amber-100/50 hover:shadow-xl transition-all duration-500 gap-8 group">
+                          <div className="flex items-center gap-8 w-full lg:w-auto">
+                              <div className="relative"><img src={l.images[0]} className="w-24 h-24 rounded-3xl object-cover shadow-2xl" /><div className="absolute inset-0 rounded-3xl border border-black/5" /></div>
+                              <div>
+                                <h5 className="font-black text-emerald-950 text-lg mb-1">{l.title}</h5>
+                                <p className="text-[10px] font-black uppercase text-emerald-600 tracking-[0.2em]">{l.category} • {l.location.city}</p>
+                                <div className="flex items-center gap-4 mt-2">
+                                   <div className="text-emerald-950 font-black text-sm">{l.currency} {l.price.toLocaleString()}</div>
+                                   <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{new Date(l.createdAt).toLocaleDateString()}</div>
+                                </div>
+                              </div>
+                          </div>
+                          <div className="flex gap-3 w-full lg:w-auto justify-end">
+                            <Link to={`/listing/${l.id}`} className="p-4 bg-white text-gray-400 rounded-2xl hover:text-emerald-600 transition-all border border-gray-100 shadow-sm"><Eye className="w-6 h-6" /></Link>
+                            <button onClick={() => handleApprove(l.id)} className="flex-1 lg:flex-none flex items-center justify-center gap-3 px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-emerald-700 transition-all shadow-lg"><CheckCircle className="w-5 h-5" /> Approve</button>
+                            <button onClick={() => handleReject(l.id)} className="flex-1 lg:flex-none flex items-center justify-center gap-3 px-8 py-4 bg-red-50 text-red-700 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-red-600 hover:text-white transition-all"><XCircle className="w-5 h-5" /> Reject</button>
+                          </div>
+                      </div>
+                    ))}
+                    {listings.filter(l => l.status === AdStatus.PENDING).length === 0 && (
+                      <div className="text-center py-20 bg-emerald-50/10 rounded-[40px] border-2 border-dashed border-emerald-100/30">
+                        <ShieldCheck className="w-12 h-12 text-emerald-200 mx-auto mb-4" />
+                        <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Global Protocol Clear</p>
+                      </div>
+                    )}
+                 </div>
+
+                 {/* Section: Public Inventory Oversight */}
+                 <div className="space-y-6 pt-12 border-t border-gray-100">
+                    <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-900 flex items-center gap-2"><Zap className="w-3.5 h-3.5" /> Active Transmission Oversight</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {listings.filter(l => l.status === AdStatus.ACTIVE).map(l => (
+                          <div key={l.id} className="bg-white border border-gray-100 p-6 rounded-[32px] flex items-center justify-between group hover:border-emerald-200 hover:shadow-lg transition-all">
+                              <div className="flex items-center gap-4">
+                                  <img src={l.images[0]} className="w-16 h-16 rounded-2xl object-cover shadow-sm" />
+                                  <div>
+                                    <h6 className="font-bold text-emerald-950 text-sm line-clamp-1">{l.title}</h6>
+                                    <div className="flex items-center gap-2 mt-1">
+                                       <span className="text-[9px] font-black text-emerald-600 uppercase">{l.currency} {l.price.toLocaleString()}</span>
+                                       <span className="text-[8px] font-bold text-gray-300">| {l.location.city}</span>
+                                    </div>
+                                  </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                 <button onClick={() => handleUnlist(l.id)} title="Unlist from registry" className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-gray-100 hover:text-emerald-950 transition-all"><EyeOff className="w-4.5 h-4.5" /></button>
+                                 <button onClick={() => handleDeleteListing(l.id)} title="Permanent delete" className="p-3 bg-red-50 text-red-300 rounded-xl hover:bg-red-500 hover:text-white transition-all"><Trash2 className="w-4.5 h-4.5" /></button>
+                              </div>
+                          </div>
+                        ))}
+                    </div>
+                 </div>
               </div>
            </div>
+        )}
+
+        {subView === 'news' && (
+          <div className="space-y-12 animate-in fade-in duration-500">
+             <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-3xl font-serif-italic text-emerald-950">Editorial Ledger</h3>
+                  <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mt-1">Global Trade Intelligence Relay</p>
+                </div>
+                <button onClick={() => setShowNewsModal(true)} className="px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl flex items-center gap-3 hover:bg-emerald-500 transition-all"><Plus className="w-4 h-4" /> Create Article</button>
+             </div>
+             
+             <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-hidden">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Headline Intelligence</th>
+                      <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Regional Segment</th>
+                      <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Timestamp</th>
+                      <th className="px-8 py-5 text-right text-[10px] font-black uppercase tracking-widest text-gray-400">Protocol</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {news.map(article => (
+                      <tr key={article.id} className="hover:bg-gray-50/50 transition-colors group">
+                        <td className="px-8 py-6">
+                          <div className="flex items-center gap-6">
+                            <div className="relative shrink-0"><img src={article.image} className="w-16 h-16 rounded-2xl object-cover shadow-sm border border-black/5" /></div>
+                            <div className="font-bold text-sm text-emerald-950 line-clamp-1">{article.title}</div>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6">
+                          <span className="text-[9px] font-black px-4 py-1.5 bg-blue-50 text-blue-600 rounded-full uppercase tracking-widest border border-blue-100">{article.category}</span>
+                        </td>
+                        <td className="px-8 py-6 text-xs text-gray-400 font-bold uppercase tracking-tight">
+                           {new Date(article.publishedAt).toLocaleDateString()}
+                        </td>
+                        <td className="px-8 py-6 text-right">
+                          <button onClick={() => handleDeleteNews(article.id)} className="p-3 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all">
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {news.length === 0 && (
+                      <tr><td colSpan={4} className="py-20 text-center text-gray-300 font-bold uppercase text-[10px] tracking-widest">No Intelligence Briefings Recorded</td></tr>
+                    )}
+                  </tbody>
+                </table>
+             </div>
+          </div>
         )}
 
         {subView === 'users' && (
           <div className="space-y-12 animate-in fade-in duration-500">
              <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-12">
                 <div><h3 className="text-3xl font-serif-italic text-emerald-950">Citizen Ledger</h3><p className="text-gray-400 text-sm font-medium">Manage verified merchant nodes and regional participants.</p></div>
-                <div className="bg-emerald-50 p-6 rounded-[32px] border border-emerald-100 flex items-center gap-6">
+                <div className="bg-emerald-50 p-6 rounded-[32px] border border-emerald-100 flex items-center gap-6 shadow-sm">
                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm"><Coins className="w-6 h-6" /></div>
                    <div>
                       <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600 block mb-1">Global Credit Injection</span>
                       <div className="flex gap-2">
-                         <input type="number" value={globalCreditAmount} onChange={e => setGlobalCreditAmount(e.target.value)} className="w-20 bg-white rounded-lg px-3 py-2 text-xs font-black outline-none border border-emerald-200" />
-                         <button onClick={handleAwardGlobal} className="bg-emerald-950 text-white px-4 py-2 rounded-lg font-black uppercase text-[9px] tracking-widest hover:bg-black transition-all">Award All</button>
+                         <input type="number" value={globalCreditAmount} onChange={e => setGlobalCreditAmount(e.target.value)} className="w-20 bg-white rounded-lg px-3 py-2 text-xs font-black outline-none border border-emerald-200 shadow-inner" />
+                         <button onClick={handleAwardGlobal} className="bg-emerald-950 text-white px-4 py-2 rounded-lg font-black uppercase text-[9px] tracking-widest hover:bg-black transition-all shadow-lg">Award All</button>
                       </div>
                    </div>
                 </div>
              </div>
 
-             <div className="bg-gray-50 rounded-[40px] border border-gray-100 overflow-hidden">
+             <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-hidden">
                 <table className="w-full text-left">
-                   <thead className="bg-white border-b border-gray-100">
+                   <thead className="bg-gray-50 border-b border-gray-100">
                       <tr>
                          <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Node Identity</th>
-                         <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400">Regional Pulse</th>
                          <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">Trade Balance</th>
                          <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right">Actions</th>
                       </tr>
                    </thead>
                    <tbody className="divide-y divide-gray-100">
                       {users.map(u => (
-                        <tr key={u.id} className="hover:bg-white transition-all group">
+                        <tr key={u.id} className="hover:bg-gray-50/30 transition-all group">
                            <td className="px-8 py-6">
                               <div className="flex items-center gap-4">
-                                 <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-700 font-black">{u.name.charAt(0)}</div>
+                                 <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-700 font-black shadow-sm">{u.name.charAt(0)}</div>
                                  <div><p className="font-bold text-emerald-950 text-sm">{u.name}</p><p className="text-[10px] text-gray-400 font-medium">{u.email}</p></div>
                               </div>
                            </td>
-                           <td className="px-8 py-6"><span className="px-3 py-1 bg-white rounded-lg text-[9px] font-black uppercase border border-gray-200 text-gray-600">{u.country || 'Global'}</span></td>
                            <td className="px-8 py-6 text-center"><span className="text-sm font-black text-emerald-600">{u.credits} <span className="text-[10px] opacity-40">CR</span></span></td>
-                           <td className="px-8 py-6 text-right"><button onClick={() => { storageService.awardCredits(u.id, 10); setUsers(storageService.getUsers()); }} className="p-2 text-gray-300 hover:text-emerald-600 transition-colors"><Zap className="w-4 h-4" /></button></td>
+                           <td className="px-8 py-6 text-right"><button onClick={() => { storageService.awardCredits(u.id, 10); setUsers(storageService.getUsers()); }} className="p-3 bg-white text-gray-300 hover:text-emerald-600 hover:border-emerald-200 border border-transparent rounded-xl transition-all"><Zap className="w-5 h-5" /></button></td>
                         </tr>
                       ))}
                    </tbody>
@@ -322,23 +507,103 @@ const AdminPanel: React.FC = () => {
                 <div className="space-y-3">
                    <label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 ml-2">Change Admin Signature</label>
                    <div className="flex gap-4">
-                      <input type="password" placeholder="New Personal Signature" id="new-sig-input" className="flex-1 bg-white rounded-2xl p-5 font-bold outline-none border border-gray-100 focus:border-emerald-500" />
+                      <input type="password" placeholder="New Personal Signature" id="new-sig-input" className="flex-1 bg-white rounded-2xl p-5 font-bold outline-none border border-gray-100 focus:border-emerald-500 shadow-sm" />
                       <button onClick={() => {
                         const val = (document.getElementById('new-sig-input') as HTMLInputElement).value;
                         if(val.length >= 6) { storageService.updateAdminPassword(val); alert('Signature Updated.'); } else { alert('Too short.'); }
-                      }} className="bg-emerald-950 text-white px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-black">Update</button>
+                      }} className="bg-emerald-950 text-white px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-black shadow-lg">Update</button>
                    </div>
                 </div>
-                <div className="p-8 bg-emerald-950 rounded-[32px] text-white relative overflow-hidden">
+                <div className="p-8 bg-emerald-950 rounded-[32px] text-white relative overflow-hidden shadow-2xl">
                    <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 blur-2xl rounded-full" />
                    <h5 className="text-emerald-400 font-black uppercase text-[10px] mb-4 flex items-center gap-2"><KeyIcon className="w-3.5 h-3.5" /> Emergency Master Node</h5>
                    <p className="text-[11px] text-emerald-100/40 leading-relaxed font-medium mb-6">The Master Recovery Key is unique to your local node instance. It bypasses all personal signatures.</p>
-                   <div className="flex items-center justify-between bg-white/5 p-4 rounded-xl border border-white/10 font-mono text-sm tracking-widest text-emerald-500">{storageService.getAdminAuth()?.recoveryKey || 'UNINITIALIZED'}</div>
+                   <div className="flex items-center justify-between bg-white/5 p-4 rounded-xl border border-white/10 font-mono text-sm tracking-widest text-emerald-500 shadow-inner">{storageService.getAdminAuth()?.recoveryKey || 'UNINITIALIZED'}</div>
                 </div>
              </div>
           </div>
         )}
       </div>
+
+      {showNewsModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-emerald-950/90 backdrop-blur-md">
+          <div className="bg-white rounded-[40px] p-8 md:p-12 max-w-4xl w-full shadow-4xl animate-in zoom-in-95 overflow-y-auto max-h-[95vh] scrollbar-hide border border-white/10">
+            <div className="flex justify-between items-center mb-10 pb-6 border-b border-gray-50">
+              <div>
+                <h2 className="text-3xl font-serif-italic text-emerald-950 leading-tight">Draft Intel Briefing</h2>
+                <p className="text-[10px] font-black uppercase text-emerald-600 tracking-widest mt-1">Editorial Suite Protocol 5.2</p>
+              </div>
+              <button onClick={() => setShowNewsModal(false)} className="p-3 bg-gray-50 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-2xl transition-all shadow-sm"><X className="w-6 h-6" /></button>
+            </div>
+            
+            <form onSubmit={handleCreateNews} className="space-y-10">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                <div className="lg:col-span-8 space-y-8">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                       <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-2">Article Headline</label>
+                       <button type="button" onClick={handleAIOptimize} disabled={isOptimizing} className="text-[8px] font-black uppercase text-emerald-600 flex items-center gap-1.5 hover:text-emerald-800 disabled:opacity-50 transition-all">
+                          {isOptimizing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} Optimize with AI
+                       </button>
+                    </div>
+                    <input required value={newsForm.title} onChange={e => setNewsForm(p => ({ ...p, title: e.target.value }))} placeholder="The future of Riyadh trade..." className="w-full bg-gray-50 p-5 rounded-2xl font-black text-emerald-950 outline-none border-2 border-transparent focus:border-emerald-500 transition-all shadow-inner text-lg" />
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-2">Intelligence Body</label>
+                    <textarea required rows={12} value={newsForm.content} onChange={e => setNewsForm(p => ({ ...p, content: e.target.value }))} placeholder="Technical data analysis and market sentiment..." className="w-full bg-gray-50 p-8 rounded-3xl font-medium text-gray-600 outline-none border-2 border-transparent focus:border-emerald-500 leading-relaxed shadow-inner" />
+                  </div>
+                </div>
+
+                <div className="lg:col-span-4 space-y-8">
+                   <div className="space-y-3">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-2">Asset Category</label>
+                      <select value={newsForm.category} onChange={e => setNewsForm(p => ({ ...p, category: e.target.value as any }))} className="w-full bg-gray-50 p-4 rounded-2xl font-bold text-emerald-950 outline-none border-2 border-transparent focus:border-emerald-500 shadow-sm appearance-none cursor-pointer">
+                        <option>Market Trend</option><option>Trade Zone News</option><option>Expert Advice</option><option>Tech Update</option>
+                      </select>
+                   </div>
+
+                   <div className="space-y-3">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-2">Banner Node</label>
+                      <div className="relative group">
+                         {newsForm.image ? (
+                           <div className="relative aspect-video rounded-3xl overflow-hidden shadow-2xl border-4 border-white">
+                              <img src={newsForm.image} className="w-full h-full object-cover" alt="Preview" />
+                              <button type="button" onClick={() => setNewsForm(p => ({ ...p, image: '' }))} className="absolute top-4 right-4 bg-red-500 text-white p-2 rounded-xl shadow-xl hover:bg-red-600 transition-all"><Trash2 className="w-4 h-4" /></button>
+                           </div>
+                         ) : (
+                           <div className="border-2 border-dashed border-emerald-100 rounded-3xl p-10 flex flex-col items-center justify-center gap-4 bg-emerald-50/30 group-hover:bg-emerald-50 transition-all cursor-pointer" onClick={() => document.getElementById('news-upload')?.click()}>
+                              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm"><Upload className="w-8 h-8" /></div>
+                              <div className="text-center">
+                                 <p className="text-[10px] font-black uppercase text-emerald-950">Upload Local Asset</p>
+                                 <p className="text-[8px] font-bold text-emerald-400 mt-1 uppercase">JPG, PNG, WEBP (MAX 10MB)</p>
+                              </div>
+                           </div>
+                         )}
+                         <input type="file" id="news-upload" hidden accept="image/*" onChange={handleImageUpload} />
+                      </div>
+                   </div>
+
+                   <div className="p-6 bg-emerald-950 rounded-[32px] text-white space-y-4 shadow-xl">
+                      <h5 className="text-[9px] font-black uppercase tracking-widest text-emerald-400 flex items-center gap-2"><Globe className="w-3.5 h-3.5" /> Distribution Check</h5>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-[10px] font-bold opacity-60"><CheckCircle className="w-3.5 h-3.5" /> Regional CDN Sync: OK</div>
+                        <div className="flex items-center gap-2 text-[10px] font-bold opacity-60"><CheckCircle className="w-3.5 h-3.5" /> Meta Tags Gen: AUTO</div>
+                        <div className="flex items-center gap-2 text-[10px] font-bold opacity-60"><CheckCircle className="w-3.5 h-3.5" /> Sitemap Refresh: ON</div>
+                      </div>
+                   </div>
+                </div>
+              </div>
+
+              <div className="pt-8 border-t border-gray-50">
+                 <button type="submit" className="w-full bg-emerald-950 text-white py-6 rounded-[28px] font-black uppercase tracking-[0.3em] text-[11px] shadow-3xl hover:bg-black transition-all flex items-center justify-center gap-4 active:scale-[0.98]">
+                    <Plus className="w-5 h-5 text-emerald-500" /> Transmit to Hub Network
+                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

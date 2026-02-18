@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { Search, User, Menu, Globe, ChevronDown, Check, Phone, Sparkles, Radio, AlertCircle, LayoutDashboard } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
-import { Language, i18n } from '../services/i18nService.ts';
-import { storageService } from '../services/storageService.ts';
+import { Language, i18n } from '../services/i18nService';
+import { storageService } from '../services/storageService';
 
 interface Props {
   onToggleSidebar: () => void;

@@ -1,5 +1,4 @@
-
-import { COUNTRIES, CITIES } from '../constants.ts';
+import { COUNTRIES, CITIES } from '../constants';
 
 export interface Coords {
   lat: number;

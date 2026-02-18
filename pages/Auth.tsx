@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, User as UserIcon, ArrowRight, ShieldCheck, Sparkles, AlertTriangle, Loader2, Smartphone, Globe, ChevronDown, CheckSquare, Square, X, LogIn } from 'lucide-react';
-import { storageService } from '../services/storageService.ts';
-import { locationService } from '../services/locationService.ts';
-import { User } from '../types.ts';
-import { COUNTRIES } from '../constants.ts';
+import { storageService } from '../services/storageService';
+import { locationService } from '../services/locationService';
+import { User } from '../types';
+import { COUNTRIES } from '../constants';
 
 const GoogleAccountPicker = ({ onSelect, onCancel }: { onSelect: (email: string, name: string) => void, onCancel: () => void }) => {
   const accounts = [

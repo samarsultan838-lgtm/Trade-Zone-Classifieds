@@ -21,8 +21,8 @@ import {
   BookOpen,
   Tag as TagIcon
 } from 'lucide-react';
-import { storageService } from '../services/storageService.ts';
-import { NewsArticle } from '../types.ts';
+import { storageService } from '../services/storageService';
+import { NewsArticle } from '../types';
 
 const News: React.FC = () => {
   const [news, setNews] = useState<NewsArticle[]>([]);

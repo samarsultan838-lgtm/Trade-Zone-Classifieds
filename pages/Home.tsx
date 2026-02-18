@@ -27,11 +27,11 @@ import {
   BarChart4,
   Server
 } from 'lucide-react';
-import ListingCard from '../components/ListingCard.tsx';
-import { storageService } from '../services/storageService.ts';
-import { locationService } from '../services/locationService.ts';
-import { CategoryType, AdStatus, Listing, Dealer, ProjectPromotion, NewsArticle } from '../types.ts';
-import { MARKET_KEYWORDS, COUNTRIES } from '../constants.ts';
+import ListingCard from '../components/ListingCard';
+import { storageService } from '../services/storageService';
+import { locationService } from '../services/locationService';
+import { CategoryType, AdStatus, Listing, Dealer, ProjectPromotion, NewsArticle } from '../types';
+import { MARKET_KEYWORDS, COUNTRIES } from '../constants';
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -58,7 +58,8 @@ const Home: React.FC = () => {
   }, []);
 
   const allActiveListings = useMemo(() => {
-    return storageService.getListings().filter(l => l.status === AdStatus.ACTIVE);
+    const data = storageService.getListings();
+    return data.filter(l => l.status === AdStatus.ACTIVE);
   }, [refreshTrigger]);
 
   // SEO STRATEGY: Automated JSON-LD Generation
@@ -191,9 +192,17 @@ const Home: React.FC = () => {
             ))}
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-          {allActiveListings.slice(0, 12).map(item => <ListingCard key={item.id} listing={item} />)}
-        </div>
+        
+        {allActiveListings.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {allActiveListings.slice(0, 12).map(item => <ListingCard key={item.id} listing={item} />)}
+          </div>
+        ) : (
+          <div className="py-24 text-center bg-gray-50 rounded-[48px] border-2 border-dashed border-gray-100">
+            <Activity className="w-12 h-12 text-gray-200 mx-auto mb-4" />
+            <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">No active transmissions in current regional node.</p>
+          </div>
+        )}
       </section>
 
       {/* MARKET INTEL PREVIEW */}

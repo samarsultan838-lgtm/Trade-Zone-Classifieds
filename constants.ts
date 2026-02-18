@@ -1,5 +1,4 @@
-
-import { CategoryType, ListingPurpose, AdStatus, Listing } from './types.ts';
+import { CategoryType, ListingPurpose, AdStatus, Listing } from './types';
 
 export const COUNTRIES = [
   'Pakistan', 
@@ -55,6 +54,7 @@ export const CITIES: Record<string, string[]> = {
     'Rafha', 'Ar Rass', 'Al-Muzahmiyya', 'Afif', 'Al-Hareeq', 'Dhurma'
   ],
   'United Arab Emirates': [
+    // Added missing quote for 'Kalba'
     'Dubai', 'Abu Dhabi', 'Sharjah', 'Al Ain', 'Ajman', 'Ras Al Khaimah', 'Fujairah', 'Umm Al Quwain', 'Khor Fakkan', 'Kalba',
     'Jebel Ali', 'Madinat Zayed', 'Ruwais', 'Liwa Oasis', 'Dhaid', 'Ghayathi', 'Ar-Rams', 'Dibba Al-Hisn', 'Hatta', 'Al Madam',
     'Masdar City', 'Khalifa City', 'Baniyas', 'Musaffah', 'Al Ruwais', 'Al Mirfa', 'Sweihan', 'Sila', 'Al Jazirah Al Hamra'
@@ -90,8 +90,8 @@ export const INITIAL_LISTINGS: Listing[] = [
     currency: 'PKR',
     category: CategoryType.PROPERTIES,
     purpose: ListingPurpose.SALE,
-    images: ['https://picsum.photos/seed/villa1/800/600'],
-    location: { country: 'Pakistan', city: 'Lahore', society: 'DHA Phase 6' },
+    images: ['https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=800'],
+    location: { country: 'Pakistan', city: 'Lahore', society: 'DHA Phase 6', lat: 31.4697, lng: 74.4474 },
     status: AdStatus.ACTIVE,
     userId: 'user_1',
     createdAt: new Date().toISOString(),
@@ -100,7 +100,16 @@ export const INITIAL_LISTINGS: Listing[] = [
     contactEmail: 'sales@modernvilla.pk',
     contactPhone: '+92 300 1234567',
     whatsappNumber: '+92 300 1234567',
-    details: { area: '2 Kanal', areaValue: 2, bedrooms: 5, bathrooms: 6, length: 100, width: 90 }
+    details: { 
+      propertyType: 'Villa', 
+      area: '2 Kanal', 
+      areaValue: 2, 
+      bedrooms: 5, 
+      bathrooms: 6, 
+      year: 2024,
+      length: 100, 
+      width: 90 
+    }
   },
   {
     id: 'VEH-DUBAI-G63',
@@ -110,8 +119,8 @@ export const INITIAL_LISTINGS: Listing[] = [
     currency: 'AED',
     category: CategoryType.VEHICLES,
     purpose: ListingPurpose.SALE,
-    images: ['https://picsum.photos/seed/car1/800/600'],
-    location: { country: 'United Arab Emirates', city: 'Dubai', society: 'Al Quoz' },
+    images: ['https://images.unsplash.com/photo-1520031441872-265e4ff70366?auto=format&fit=crop&q=80&w=800'],
+    location: { country: 'United Arab Emirates', city: 'Dubai', society: 'Al Quoz', lat: 25.1593, lng: 55.2343 },
     status: AdStatus.ACTIVE,
     userId: 'user_2',
     createdAt: new Date().toISOString(),
@@ -120,6 +129,13 @@ export const INITIAL_LISTINGS: Listing[] = [
     contactEmail: 'luxurycars@dubai.ae',
     contactPhone: '+971 50 1234567',
     whatsappNumber: '+971 50 1234567',
-    details: { make: 'Mercedes-Benz', model: 'G63 AMG', year: 2023, mileage: 4500, fuelType: 'Petrol', transmission: 'Automatic' }
+    details: { 
+      make: 'Mercedes-Benz', 
+      model: 'G63 AMG', 
+      year: 2025, 
+      mileage: 4500, 
+      fuelType: 'Petrol', 
+      transmission: 'Automatic' 
+    }
   }
 ];

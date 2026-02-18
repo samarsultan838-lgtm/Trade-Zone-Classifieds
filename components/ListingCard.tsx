@@ -1,6 +1,5 @@
-
 import React, { useMemo } from 'react';
-import { Listing, ListingPurpose, AdStatus } from '../types.ts';
+import { Listing, ListingPurpose, AdStatus } from '../types';
 import { MapPin, CheckCircle, TrendingUp, Phone, Mail, MessageCircle, Clock, ImageIcon, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -91,7 +90,7 @@ const ListingCard: React.FC<Props> = React.memo(({ listing }) => {
               </div>
             )}
             {!isSold && isNew && (
-              <div className="bg-emerald-600 text-white text-[9px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-xl border border-emerald-500">
+              <div className="bg-emerald-600 text-white text-[9px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest flex items-center gap-1.5 shadow-xl border border-emerald-50">
                 New
               </div>
             )}

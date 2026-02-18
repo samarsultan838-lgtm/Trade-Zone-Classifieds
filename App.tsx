@@ -1,36 +1,36 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { X, Send, Sparkles, Loader2, Minus, ChevronUp, Radio } from 'lucide-react';
-import Navbar from './components/Navbar.tsx';
-import Sidebar from './components/Sidebar.tsx';
-import Footer from './components/Footer.tsx';
+import Navbar from './components/Navbar';
+import Sidebar from './components/Sidebar';
+import Footer from './components/Footer';
 import { GoogleGenAI } from "@google/genai";
-import { storageService } from './services/storageService.ts';
-import { locationService } from './services/locationService.ts';
-import { Language, i18n } from './services/i18nService.ts';
-import { MARKET_KEYWORDS } from './constants.ts';
+import { storageService } from './services/storageService';
+import { locationService } from './services/locationService';
+import { Language, i18n } from './services/i18nService';
+import { MARKET_KEYWORDS } from './constants';
 
 // Lazy Load Pages
-const Home = lazy(() => import('./pages/Home.tsx'));
-const SearchPage = lazy(() => import('./pages/SearchPage.tsx'));
-const ListingDetail = lazy(() => import('./pages/ListingDetail.tsx'));
-const PostAd = lazy(() => import('./pages/PostAd.tsx'));
-const Workspace = lazy(() => import('./pages/Workspace.tsx'));
-const AdminPanel = lazy(() => import('./pages/AdminPanel.tsx'));
-const Auth = lazy(() => import('./pages/Auth.tsx'));
-const News = lazy(() => import('./pages/News.tsx'));
-const About = lazy(() => import('./pages/About.tsx'));
-const Contact = lazy(() => import('./pages/Contact.tsx'));
-const Privacy = lazy(() => import('./pages/Privacy.tsx'));
-const Terms = lazy(() => import('./pages/Terms.tsx'));
-const Safety = lazy(() => import('./pages/Safety.tsx'));
-const TrazotTools = lazy(() => import('./pages/TrazotTools.tsx'));
-const Advertise = lazy(() => import('./pages/Advertise.tsx'));
-const Homes = lazy(() => import('./pages/Homes.tsx'));
-const Messages = lazy(() => import('./pages/Messages.tsx'));
-const Services = lazy(() => import('./pages/Services.tsx'));
-const VerifiedDealers = lazy(() => import('./pages/VerifiedDealers.tsx'));
-const Projects = lazy(() => import('./pages/Projects.tsx'));
+const Home = lazy(() => import('./pages/Home'));
+const SearchPage = lazy(() => import('./pages/SearchPage'));
+const ListingDetail = lazy(() => import('./pages/ListingDetail'));
+const PostAd = lazy(() => import('./pages/PostAd'));
+const Workspace = lazy(() => import('./pages/Workspace'));
+const AdminPanel = lazy(() => import('./pages/AdminPanel'));
+const Auth = lazy(() => import('./pages/Auth'));
+const News = lazy(() => import('./pages/News'));
+const About = lazy(() => import('./pages/About'));
+const Contact = lazy(() => import('./pages/Contact'));
+const Privacy = lazy(() => import('./pages/Privacy'));
+const Terms = lazy(() => import('./pages/Terms'));
+const Safety = lazy(() => import('./pages/Safety'));
+const TrazotTools = lazy(() => import('./pages/TrazotTools'));
+const Advertise = lazy(() => import('./pages/Advertise'));
+const Homes = lazy(() => import('./pages/Homes'));
+const Messages = lazy(() => import('./pages/Messages'));
+const Services = lazy(() => import('./pages/Services'));
+const VerifiedDealers = lazy(() => import('./pages/VerifiedDealers'));
+const Projects = lazy(() => import('./pages/Projects'));
 
 const PageLoader = () => (
   <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">

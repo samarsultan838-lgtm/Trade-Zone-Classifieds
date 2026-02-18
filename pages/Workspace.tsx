@@ -25,8 +25,8 @@ import {
   LogOut
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { storageService } from '../services/storageService.ts';
-import { AdStatus, Listing, SavedSearch, User } from '../types.ts';
+import { storageService } from '../services/storageService';
+import { AdStatus, Listing, SavedSearch, User } from '../types';
 
 const Workspace: React.FC = () => {
   const navigate = useNavigate();

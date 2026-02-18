@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Search, Send, User, ChevronLeft, MoreVertical, Paperclip, Smile, Image as ImageIcon, ShieldCheck, MessageCircle, Zap, Loader2 } from 'lucide-react';
-import { storageService } from '../services/storageService.ts';
-import { InternalMessage, User as UserType } from '../types.ts';
+import { storageService } from '../services/storageService';
+import { InternalMessage, User as UserType } from '../types';
 import { useNavigate } from 'react-router-dom';
 
 const Messages: React.FC = () => {
@@ -28,7 +28,6 @@ const Messages: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, selectedConvoId]);
 
-  // GROUP MESSAGES INTO CONVERSATIONS
   const conversations = useMemo(() => {
     const convoMap = new Map<string, {
       participantId: string;
@@ -44,7 +43,6 @@ const Messages: React.FC = () => {
       const isMeSender = m.senderId === currentUser.id;
       const partnerId = isMeSender ? m.receiverId : m.senderId;
       const partnerName = isMeSender ? 'Merchant Node' : m.senderName;
-      // Keyed by partner + listing to keep context clear
       const convoKey = `${partnerId}_${m.listingId}`;
 
       const existing = convoMap.get(convoKey);
@@ -122,7 +120,6 @@ const Messages: React.FC = () => {
           )}
         </div>
       </div>
-
       <div className={`flex-1 flex flex-col bg-gray-50/30 ${!selectedConvoId ? 'hidden md:flex' : 'flex'}`}>
         {selectedConvoId && activeConvo ? (
           <>
@@ -130,10 +127,7 @@ const Messages: React.FC = () => {
               <div className="flex items-center gap-4">
                 <button onClick={() => setSelectedConvoId(null)} className="md:hidden p-2 text-gray-400 hover:text-emerald-600"><ChevronLeft className="w-6 h-6" /></button>
                 <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 font-black">P</div>
-                <div>
-                  <div className="flex items-center gap-1.5"><h3 className="font-bold text-emerald-950">{activeConvo.participantName}</h3><ShieldCheck className="w-4 h-4 text-emerald-500" /></div>
-                  <span className="text-[10px] font-black uppercase text-emerald-600 tracking-widest">Listing: {activeConvo.listingTitle}</span>
-                </div>
+                <div><div className="flex items-center gap-1.5"><h3 className="font-bold text-emerald-950">{activeConvo.participantName}</h3><ShieldCheck className="w-4 h-4 text-emerald-500" /></div><span className="text-[10px] font-black uppercase text-emerald-600 tracking-widest">Listing: {activeConvo.listingTitle}</span></div>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
@@ -155,11 +149,7 @@ const Messages: React.FC = () => {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-emerald-50/20">
-            <div className="w-24 h-24 bg-white rounded-[32px] flex items-center justify-center text-emerald-100 shadow-sm mb-6"><MessageCircle className="w-12 h-12" /></div>
-            <h3 className="text-2xl font-serif-italic text-emerald-950 mb-2">Secure Message Node</h3>
-            <p className="text-gray-400 max-w-xs font-medium">Select a conversation to begin high-fidelity trade communication.</p>
-          </div>
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-emerald-50/20"><div className="w-24 h-24 bg-white rounded-[32px] flex items-center justify-center text-emerald-100 shadow-sm mb-6"><MessageCircle className="w-12 h-12" /></div><h3 className="text-2xl font-serif-italic text-emerald-950 mb-2">Secure Message Node</h3><p className="text-gray-400 max-w-xs font-medium">Select a conversation to begin high-fidelity trade communication.</p></div>
         )}
       </div>
     </div>

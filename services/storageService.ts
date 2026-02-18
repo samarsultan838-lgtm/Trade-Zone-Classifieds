@@ -1,5 +1,5 @@
-import { Listing, User, AdStatus, NewsArticle, SavedSearch, Dealer, ProjectPromotion, InternalMessage } from '../types.ts';
-import { INITIAL_LISTINGS } from '../constants.ts';
+import { Listing, User, AdStatus, NewsArticle, SavedSearch, Dealer, ProjectPromotion, InternalMessage } from '../types';
+import { INITIAL_LISTINGS } from '../constants';
 
 const LISTINGS_KEY = 'tz_listings';
 const USER_KEY = 'tz_user';
@@ -233,8 +233,9 @@ export const storageService = {
   getListings: (): Listing[] => {
     const stored = localStorage.getItem(LISTINGS_KEY);
     try { 
-      const parsed = stored ? JSON.parse(stored) : INITIAL_LISTINGS;
-      const data = Array.isArray(parsed) ? parsed : INITIAL_LISTINGS;
+      const parsed = stored ? JSON.parse(stored) : null;
+      // Seed with INITIAL_LISTINGS if storage is empty, ensuring the dashboard isn't blank
+      const data = (Array.isArray(parsed) && parsed.length > 0) ? parsed : INITIAL_LISTINGS;
       return [...data].sort((a, b) => {
         if (a.featured && !b.featured) return -1;
         if (!a.featured && b.featured) return 1;
@@ -399,10 +400,17 @@ export const storageService = {
 
   deleteListing: async (id: string) => {
     const listings = storageService.getListings();
+    const filtered = listings.filter(l => l.id !== id);
+    localStorage.setItem(LISTINGS_KEY, JSON.stringify(filtered));
+    window.dispatchEvent(new Event('storage'));
+    await storageService.broadcastToCloud();
+  },
+
+  unlistListing: async (id: string) => {
+    const listings = storageService.getListings();
     const idx = listings.findIndex(l => l.id === id);
     if (idx !== -1) {
       listings[idx].status = AdStatus.TRASHED;
-      listings[idx].createdAt = new Date().toISOString(); 
       localStorage.setItem(LISTINGS_KEY, JSON.stringify(listings));
       window.dispatchEvent(new Event('storage'));
       await storageService.broadcastToCloud();
