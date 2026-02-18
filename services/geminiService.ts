@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 
 // Optimize listing content using Gemini API
@@ -48,7 +47,7 @@ export async function optimizeListingContent(title: string, rawDescription: stri
   }
 }
 
-// NEW: Optimize News/Articles for SEO and Readability
+// Optimize News/Articles for SEO and Readability
 export async function optimizeNewsArticle(title: string, rawContent: string, category: string) {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   

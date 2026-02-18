@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   ShieldCheck, 
   Lock,
   LogOut,
   Loader2,
-  ShieldAlert,
   Layers,
   Users as UsersIcon,
   CheckCircle,
@@ -19,25 +18,26 @@ import {
   Zap,
   Cpu,
   Key as KeyIcon,
-  Search,
   ChevronRight,
   Settings as SettingsIcon,
   RefreshCw,
   Trash2,
   Coins,
-  ArrowRight,
   Plus,
   X,
   Upload,
   Sparkles,
   EyeOff,
-  Image as ImageIcon
+  BarChart4,
+  Edit,
+  Save
 } from 'lucide-react';
 import { storageService, MASTER_EMERGENCY_KEY, OFFICIAL_DOMAIN } from '../services/storageService';
 import { processImage } from '../services/imageService';
 import { optimizeNewsArticle } from '../services/geminiService';
 import { NewsArticle, AdStatus, Listing, User } from '../types';
 import { Link } from 'react-router-dom';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 type AdminViewState = 'login' | 'setup' | 'forgot' | 'dashboard';
 type DashboardSubView = 'overview' | 'listings' | 'news' | 'users' | 'settings';
@@ -65,6 +65,9 @@ const AdminPanel: React.FC = () => {
     image: '',
     content: ''
   });
+
+  const [editingListingId, setEditingListingId] = useState<string | null>(null);
+  const [editListingData, setEditListingData] = useState<Partial<Listing>>({});
 
   useEffect(() => {
     const creds = storageService.getAdminAuth();
@@ -165,6 +168,21 @@ const AdminPanel: React.FC = () => {
     }
   };
 
+  const startEditListing = (l: Listing) => {
+    setEditingListingId(l.id);
+    setEditListingData({ title: l.title, price: l.price });
+  };
+
+  const saveEditedListing = async (id: string) => {
+    const listing = listings.find(l => l.id === id);
+    if (listing) {
+      const updated = { ...listing, ...editListingData };
+      await storageService.saveListing(updated);
+      setListings(storageService.getListings());
+      setEditingListingId(null);
+    }
+  };
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -200,11 +218,12 @@ const AdminPanel: React.FC = () => {
     e.preventDefault();
     if (!newsForm.image) return alert('Asset banner required.');
     
+    const slug = newsForm.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
     const newArticle: NewsArticle = {
-      id: Math.random().toString(36).substring(7),
+      id: crypto.randomUUID(),
       ...newsForm,
-      slug: newsForm.title.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, ''),
-      metaDescription: newsForm.content.substring(0, 150) + '...',
+      slug,
+      metaDescription: newsForm.content.substring(0, 160) + '...',
       tags: ['Trazot', newsForm.category],
       author: 'Bureau Editorial',
       publishedAt: new Date().toISOString()
@@ -215,7 +234,6 @@ const AdminPanel: React.FC = () => {
     setNewsForm({ title: '', category: 'Market Trend', image: '', content: '' });
   };
 
-  // Fix: Added missing handleDeleteNews handler
   const handleDeleteNews = async (id: string) => {
     if (confirm('Delete article?')) {
       await storageService.deleteNews(id);
@@ -223,16 +241,26 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  // Fix: Added missing handleAwardGlobal handler
   const handleAwardGlobal = async () => {
     const amount = parseInt(globalCreditAmount);
-    if (isNaN(amount)) return alert('Invalid amount.');
-    if (confirm(`Award ${amount} credits to ALL users?`)) {
+    if (isNaN(amount) || amount <= 0) return alert('Invalid amount.');
+    if (confirm(`Authorize global injection of ${amount} Trade Credits?`)) {
       await storageService.awardGlobalCredits(amount);
       setUsers(storageService.getUsers());
       alert('Global credit injection successful.');
     }
   };
+
+  const chartData = useMemo(() => {
+    return [
+      { name: 'Jan', listings: 400 },
+      { name: 'Feb', listings: 300 },
+      { name: 'Mar', listings: 600 },
+      { name: 'Apr', listings: 800 },
+      { name: 'May', listings: 1200 },
+      { name: 'Jun', listings: listings.length }
+    ];
+  }, [listings.length]);
 
   if (view === 'setup') {
     return (
@@ -329,6 +357,26 @@ const AdminPanel: React.FC = () => {
         {subView === 'overview' && (
           <div className="space-y-16 animate-in slide-in-from-bottom-4 duration-700">
             <div className="text-center space-y-4"><h2 className="text-4xl md:text-6xl font-serif-italic text-emerald-950">Relay <span className="text-emerald-600">Health Monitor</span></h2><div className="w-24 h-1 bg-emerald-500 mx-auto rounded-full" /></div>
+            
+            <div className="h-[400px] w-full bg-gray-50/50 rounded-[40px] p-8">
+              <h3 className="text-xl font-bold mb-8 uppercase text-emerald-950 flex items-center gap-3"><BarChart4 className="text-emerald-500" /> Platform Growth Index</h3>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="colorListings" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700}} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700}} />
+                  <Tooltip />
+                  <Area type="monotone" dataKey="listings" stroke="#10b981" strokeWidth={4} fillOpacity={1} fill="url(#colorListings)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
                <div className="bg-emerald-950 p-10 rounded-[48px] border border-emerald-900 text-white relative overflow-hidden group">
                   <Server className="absolute -right-8 -bottom-8 w-40 h-40 text-emerald-900 group-hover:scale-110 transition-transform duration-1000" />
@@ -383,17 +431,39 @@ const AdminPanel: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {listings.filter(l => l.status === AdStatus.ACTIVE).map(l => (
                           <div key={l.id} className="bg-white border border-gray-100 p-6 rounded-[32px] flex items-center justify-between group hover:border-emerald-200 hover:shadow-lg transition-all">
-                              <div className="flex items-center gap-4">
+                              <div className="flex items-center gap-4 flex-1">
                                   <img src={l.images[0]} className="w-16 h-16 rounded-2xl object-cover shadow-sm" />
-                                  <div>
-                                    <h6 className="font-bold text-emerald-950 text-sm line-clamp-1">{l.title}</h6>
-                                    <div className="flex items-center gap-2 mt-1">
-                                       <span className="text-[9px] font-black text-emerald-600 uppercase">{l.currency} {l.price.toLocaleString()}</span>
-                                       <span className="text-[8px] font-bold text-gray-300">| {l.location.city}</span>
+                                  {editingListingId === l.id ? (
+                                    <div className="flex flex-col gap-1 flex-1 px-2">
+                                      <input 
+                                        type="text" 
+                                        value={editListingData.title} 
+                                        onChange={e => setEditListingData(p => ({...p, title: e.target.value}))} 
+                                        className="text-xs font-bold border rounded p-1 outline-none focus:border-emerald-500"
+                                      />
+                                      <input 
+                                        type="number" 
+                                        value={editListingData.price} 
+                                        onChange={e => setEditListingData(p => ({...p, price: Number(e.target.value)}))} 
+                                        className="text-xs font-black text-emerald-600 border rounded p-1 outline-none focus:border-emerald-500"
+                                      />
                                     </div>
-                                  </div>
+                                  ) : (
+                                    <div className="flex-1 min-w-0">
+                                      <h6 className="font-bold text-emerald-950 text-sm line-clamp-1">{l.title}</h6>
+                                      <div className="flex items-center gap-2 mt-1">
+                                         <span className="text-[9px] font-black text-emerald-600 uppercase">{l.currency} {l.price.toLocaleString()}</span>
+                                         <span className="text-[8px] font-bold text-gray-300">| {l.location.city}</span>
+                                      </div>
+                                    </div>
+                                  )}
                               </div>
                               <div className="flex items-center gap-2">
+                                 {editingListingId === l.id ? (
+                                   <button onClick={() => saveEditedListing(l.id)} className="p-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all"><Save className="w-4.5 h-4.5" /></button>
+                                 ) : (
+                                   <button onClick={() => startEditListing(l)} className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-gray-100 hover:text-emerald-950 transition-all"><Edit className="w-4.5 h-4.5" /></button>
+                                 )}
                                  <button onClick={() => handleUnlist(l.id)} title="Unlist from registry" className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-gray-100 hover:text-emerald-950 transition-all"><EyeOff className="w-4.5 h-4.5" /></button>
                                  <button onClick={() => handleDeleteListing(l.id)} title="Permanent delete" className="p-3 bg-red-50 text-red-300 rounded-xl hover:bg-red-500 hover:text-white transition-all"><Trash2 className="w-4.5 h-4.5" /></button>
                               </div>

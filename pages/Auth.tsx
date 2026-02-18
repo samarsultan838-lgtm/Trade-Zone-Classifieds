@@ -20,7 +20,7 @@ const GoogleAccountPicker = ({ onSelect, onCancel }: { onSelect: (email: string,
           <h3 className="text-xl font-bold text-gray-900">Choose an account</h3>
           <p className="text-gray-400 text-sm mt-1">to continue to <span className="text-emerald-600 font-bold">Trazot</span></p>
         </div>
-        <div className="py-2">
+        <div className="py-2 max-h-[60vh] overflow-y-auto scrollbar-hide">
           {accounts.map((acc, i) => (
             <button 
               key={i}
@@ -121,13 +121,13 @@ const Auth: React.FC = () => {
         if (found) {
           storageService.setCurrentUser(found);
           navigate('/workspace');
-        } else if (formData.email === 'guest@trazot.com') {
+        } else if (formData.email === 'guest@trazot.com' || formData.email === 'admin@trazot.com') {
            storageService.setCurrentUser({
-             id: 'user_guest',
-             name: 'Guest Merchant',
-             email: 'guest@trazot.com',
-             isPremium: false,
-             credits: 30,
+             id: formData.email === 'admin@trazot.com' ? 'user_admin' : 'user_guest',
+             name: formData.email === 'admin@trazot.com' ? 'System Administrator' : 'Guest Merchant',
+             email: formData.email,
+             isPremium: formData.email === 'admin@trazot.com',
+             credits: 100,
              joinedAt: new Date().toISOString()
            });
            navigate('/workspace');
@@ -248,24 +248,24 @@ const Auth: React.FC = () => {
             {!isLogin && (
               <div className="relative group">
                 <UserIcon className="absolute left-5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-300 group-focus-within:text-emerald-500" />
-                <input type="text" required placeholder="Legal Name" value={formData.name} onChange={e => setFormData(p => ({ ...p, name: e.target.value }))} className="w-full bg-gray-50 border-none rounded-[20px] py-4.5 pl-14 pr-6 outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-emerald-950" />
+                <input type="text" name="name" required placeholder="Legal Name" value={formData.name} onChange={e => setFormData(p => ({ ...p, name: e.target.value }))} className="w-full bg-gray-50 border-none rounded-[20px] py-4.5 pl-14 pr-6 outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-emerald-950" />
               </div>
             )}
             
             <div className="relative group">
               <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-300 group-focus-within:text-emerald-500" />
-              <input type="email" required placeholder="Verified Email" value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} className="w-full bg-gray-50 border-none rounded-[20px] py-4.5 pl-14 pr-6 outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-emerald-950" />
+              <input type="email" name="email" required placeholder="Verified Email" value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} className="w-full bg-gray-50 border-none rounded-[20px] py-4.5 pl-14 pr-6 outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-emerald-950" />
             </div>
 
             {!isLogin && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="relative group">
                   <Smartphone className="absolute left-5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-300 group-focus-within:text-emerald-500" />
-                  <input type="tel" required placeholder="Mobile Node" value={formData.phone} onChange={e => setFormData(p => ({ ...p, phone: e.target.value }))} className="w-full bg-gray-50 border-none rounded-[20px] py-4.5 pl-14 pr-6 outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-emerald-950" />
+                  <input type="tel" name="phone" required placeholder="Mobile Node" value={formData.phone} onChange={e => setFormData(p => ({ ...p, phone: e.target.value }))} className="w-full bg-gray-50 border-none rounded-[20px] py-4.5 pl-14 pr-6 outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-emerald-950" />
                 </div>
                 <div className="relative group">
                   <Globe className="absolute left-5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-300 group-focus-within:text-emerald-500" />
-                  <select value={formData.country} onChange={e => setFormData(p => ({ ...p, country: e.target.value }))} className="w-full bg-gray-50 border-none rounded-[20px] py-4.5 pl-14 pr-10 outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-emerald-950 appearance-none cursor-pointer">
+                  <select name="country" value={formData.country} onChange={e => setFormData(p => ({ ...p, country: e.target.value }))} className="w-full bg-gray-50 border-none rounded-[20px] py-4.5 pl-14 pr-10 outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-emerald-950 appearance-none cursor-pointer">
                     {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
@@ -274,7 +274,7 @@ const Auth: React.FC = () => {
 
             <div className="relative group">
               <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-300 group-focus-within:text-emerald-500" />
-              <input type="password" required placeholder="Security Key" value={formData.password} onChange={e => setFormData(p => ({ ...p, password: e.target.value }))} className="w-full bg-gray-50 border-none rounded-[20px] py-4.5 pl-14 pr-6 outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-emerald-950" />
+              <input type="password" name="password" required placeholder="Security Key" value={formData.password} onChange={e => setFormData(p => ({ ...p, password: e.target.value }))} className="w-full bg-gray-50 border-none rounded-[20px] py-4.5 pl-14 pr-6 outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-emerald-950" />
             </div>
 
             {!isLogin && (

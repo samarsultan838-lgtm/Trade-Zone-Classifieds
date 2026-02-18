@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
-import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
-import { X, Send, Sparkles, Loader2, Minus, ChevronUp, Radio } from 'lucide-react';
+import { HashRouter as Router, Routes, Route, useLocation, Link } from 'react-router-dom';
+import { X, Send, Sparkles, Loader2, Minus, ChevronUp, AlertCircle } from 'lucide-react';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import Footer from './components/Footer';
@@ -39,6 +39,15 @@ const PageLoader = () => (
   </div>
 );
 
+const NotFound = () => (
+  <div className="flex flex-col items-center justify-center min-h-[70vh] text-center p-6">
+    <AlertCircle className="w-20 h-20 text-emerald-950 mb-6 opacity-20" />
+    <h1 className="text-4xl font-serif-italic text-emerald-950 mb-4">Route Disconnected</h1>
+    <p className="text-gray-500 mb-8 max-w-md">The requested technical node could not be located in the current Trazot directory.</p>
+    <Link to="/" className="px-10 py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl hover:bg-emerald-700 transition-all">Reconnect to Home</Link>
+  </div>
+);
+
 const SEOManager: React.FC<{ lang: Language }> = ({ lang }) => {
   const location = useLocation();
   const t = i18n.get(lang);
@@ -47,7 +56,7 @@ const SEOManager: React.FC<{ lang: Language }> = ({ lang }) => {
   useEffect(() => {
     const path = location.pathname;
     const keywords = MARKET_KEYWORDS[userCountry] || MARKET_KEYWORDS['Pakistan'];
-    const keywordStr = [...keywords.motors, ...keywords.property].slice(0, 5).join(', ');
+    const keywordStr = [...(keywords?.motors || []), ...(keywords?.property || [])].slice(0, 5).join(', ');
     
     let title = `Trazot | Elite Marketplace - ${userCountry}`;
     let description = `${t.footerAbout} Trending: ${keywordStr}`;
@@ -97,7 +106,8 @@ const AIChatbot: React.FC<{ lang: Language, isOpen: boolean, onClose: () => void
     } catch (e) {
       setMessages(prev => [...prev, { role: 'ai', text: "Connection error." }]);
     } finally {
-      setIsLoading(false);
+      setIsLoading(true);
+      setTimeout(() => setIsLoading(false), 500);
     }
   };
 
@@ -119,7 +129,7 @@ const AIChatbot: React.FC<{ lang: Language, isOpen: boolean, onClose: () => void
       </div>
       {!isMinimized && (
         <>
-          <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50/50">
+          <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50/50 scrollbar-hide">
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[85%] px-5 py-3.5 rounded-[24px] text-sm leading-relaxed shadow-sm ${m.role === 'user' ? 'bg-emerald-600 text-white rounded-br-none' : 'bg-white text-emerald-950 rounded-bl-none'}`}>
@@ -172,18 +182,25 @@ const App: React.FC = () => {
   const [lang, setLang] = useState<Language>((localStorage.getItem('tz_lang') as Language) || 'en');
   const [syncStatus, setSyncStatus] = useState<'syncing' | 'synced' | 'local' | 'error'>('syncing');
 
-  // HEARTBEAT PROTOCOL: Real check for Hostinger Connection
+  // HEARTBEAT PROTOCOL: Real check for Hostinger Connection with race condition fix
   useEffect(() => {
+    let mounted = true;
     storageService.startBackgroundSync();
     
     const checkHealth = async () => {
-      const health = await storageService.getBackendHealth();
-      if (health.status.includes('Active')) {
-        setSyncStatus('synced');
-      } else if (health.status.includes('Offline')) {
-        setSyncStatus('error');
-      } else {
-        setSyncStatus('local');
+      try {
+        const health = await storageService.getBackendHealth();
+        if (!mounted) return;
+        
+        if (health.status.includes('Active')) {
+          setSyncStatus('synced');
+        } else if (health.status.includes('Offline')) {
+          setSyncStatus('error');
+        } else {
+          setSyncStatus('local');
+        }
+      } catch (e) {
+        if (mounted) setSyncStatus('error');
       }
     };
 
@@ -191,6 +208,7 @@ const App: React.FC = () => {
     const interval = setInterval(checkHealth, 30000); // Pulse every 30s
     
     return () => {
+      mounted = false;
       storageService.stopBackgroundSync();
       clearInterval(interval);
     };
@@ -205,26 +223,29 @@ const App: React.FC = () => {
         <Route path="/auth" element={<Suspense fallback={<PageLoader />}><Auth /></Suspense>} />
         <Route path="/admin-access-portal" element={<Suspense fallback={<PageLoader />}><AdminPanel /></Suspense>} />
         <Route path="*" element={<Layout lang={lang} onLangChange={handleLangChange} syncStatus={syncStatus}>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/homes" element={<Homes />} />
-            <Route path="/promotions" element={<Projects />} />
-            <Route path="/dealers" element={<VerifiedDealers />} />
-            <Route path="/search" element={<SearchPage />} />
-            <Route path="/listing/:id" element={<ListingDetail />} />
-            <Route path="/post-ad" element={<PostAd />} />
-            <Route path="/workspace" element={<Workspace />} />
-            <Route path="/news" element={<News />} />
-            <Route path="/services" element={<Services />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/privacy" element={<Privacy />} />
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/safety" element={<Safety />} />
-            <Route path="/tools" element={<TrazotTools />} />
-            <Route path="/advertise" element={<Advertise />} />
-            <Route path="/messages" element={<Messages />} />
-          </Routes>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/homes" element={<Homes />} />
+              <Route path="/promotions" element={<Projects />} />
+              <Route path="/dealers" element={<VerifiedDealers />} />
+              <Route path="/search" element={<SearchPage />} />
+              <Route path="/listing/:id" element={<ListingDetail />} />
+              <Route path="/post-ad" element={<PostAd />} />
+              <Route path="/workspace" element={<Workspace />} />
+              <Route path="/news" element={<News />} />
+              <Route path="/services" element={<Services />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/safety" element={<Safety />} />
+              <Route path="/tools" element={<TrazotTools />} />
+              <Route path="/advertise" element={<Advertise />} />
+              <Route path="/messages" element={<Messages />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
         </Layout>} />
       </Routes>
     </Router>

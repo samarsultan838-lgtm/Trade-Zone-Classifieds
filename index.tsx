@@ -6,7 +6,7 @@ import App from './App';
 const loadGoogleMaps = () => {
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
-    console.warn("Google Maps API Key not detected in environment.");
+    console.warn("Google Maps API Key not detected in environment. Mapping features disabled.");
     return;
   }
   

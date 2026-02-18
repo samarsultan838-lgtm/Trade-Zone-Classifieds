@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   
   <!-- SEO Layer 1: Content Security & Authority -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval' blob:; img-src 'self' https: data: blob:; connect-src 'self' https:;">
@@ -43,6 +43,7 @@
       background-color: #ffffff;
       -webkit-font-smoothing: antialiased;
       text-rendering: optimizeLegibility;
+      overflow-x: hidden;
     }
     .font-serif-italic {
       font-family: 'DM Serif Display', serif;
@@ -53,9 +54,10 @@
     button:focus-visible, a:focus-visible { outline: 2px solid #10b981; outline-offset: 2px; }
     .image-container { background-color: #f3f4f6; position: relative; overflow: hidden; aspect-ratio: 4/3; }
     section { content-visibility: auto; contain-intrinsic-size: 0 500px; }
+    
+    /* Global transition for theme and mobile feel */
+    * { transition: background-color 0.2s ease, border-color 0.2s ease; }
   </style>
-
-  <script>window.process = { env: { API_KEY: '' } };</script>
 
   <script type="importmap">
   {
