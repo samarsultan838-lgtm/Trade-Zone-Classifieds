@@ -13,16 +13,11 @@ const SECURITY_LOGS_KEY = 'tz_security_logs';
 const SUBSCRIBERS_KEY = 'tz_newsletter_subscribers';
 const MESSAGES_KEY = 'tz_internal_messages';
 
-/** 
- * HOSTINGER PRODUCTION NODE CONFIGURATION 
- * Matching Screenshot: u550128434
- */
 export const OFFICIAL_DOMAIN = 'trazot.com';
 export const MASTER_EMERGENCY_KEY = 'TRAZOT-MASTER-2025-RECOVERY-NODE';
 const DB_NODE_ID = 'u550128434_trazot_db';
 const DB_ADMIN_USER = 'u550128434_trazot_admin';
 
-// The Production API Relay on your Hostinger Server
 const CLOUD_NODE_URL = 'https://trazot.com/api.php'; 
 
 let pollingInterval: any = null;
@@ -55,16 +50,28 @@ export const storageService = {
   getBackendHealth: async () => {
     const start = performance.now();
     try {
-      const res = await fetch(`${CLOUD_NODE_URL}?action=ping`, { method: 'GET' });
+      const res = await fetch(`${CLOUD_NODE_URL}?action=ping`, { 
+        method: 'GET',
+        cache: 'no-store'
+      });
       const latency = performance.now() - start;
+      const data = await res.json().catch(() => ({}));
+      
       return { 
-        status: res.ok ? 'Healthy' : 'Degraded', 
+        status: res.ok ? 'Institutional Node Active' : 'Degraded', 
         latency: Math.round(latency),
         node: DB_NODE_ID,
-        admin: DB_ADMIN_USER
+        admin: DB_ADMIN_USER,
+        db_status: data.db_connected ? 'Connected' : 'Waiting for PHP Handshake'
       };
     } catch {
-      return { status: 'Offline', latency: 0, node: DB_NODE_ID, admin: DB_ADMIN_USER };
+      return { 
+        status: 'Offline (Network Error)', 
+        latency: 0, 
+        node: DB_NODE_ID, 
+        admin: DB_ADMIN_USER, 
+        db_status: 'Connection Refused'
+      };
     }
   },
 
@@ -88,8 +95,6 @@ export const storageService = {
       });
       if (!response.ok) return 'local';
       const result = await response.json();
-      
-      // Handle the standardized PHP response structure
       const cloudData = result.data || result;
 
       if (cloudData) {
@@ -137,10 +142,7 @@ export const storageService = {
         window.dispatchEvent(new Event('storage'));
       }
       return 'synced';
-    } catch (e) { 
-      console.warn("Node sync fallback to local storage.", e);
-      return 'local'; 
-    }
+    } catch { return 'local'; }
   },
 
   broadcastToCloud: async () => {
@@ -154,9 +156,8 @@ export const storageService = {
         subscribers: storageService.getSubscribers(),
         messages: storageService.getInternalMessages(),
         lastUpdate: new Date().toISOString(),
-        version: '5.1.0-HOSTINGER-RELAY',
-        dbNode: DB_NODE_ID,
-        dbUser: DB_ADMIN_USER
+        version: '5.2.0-PROD-STABLE',
+        node_id: DB_NODE_ID
       };
       
       const res = await fetch(CLOUD_NODE_URL, {
@@ -212,22 +213,21 @@ export const storageService = {
     return false;
   },
 
-  bulkProvisionCredits: async () => {
+  awardGlobalCredits: async (amount: number) => {
     const users = storageService.getUsers();
-    const updatedUsers = users.map(u => ({
-      ...u,
-      credits: u.credits + (u.country === 'Pakistan' ? 30 : 5)
-    }));
-    
+    const updatedUsers = users.map(u => ({ ...u, credits: (u.credits || 0) + amount }));
     localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(updatedUsers));
     
-    const currentUser = storageService.getCurrentUser();
-    const found = updatedUsers.find(u => u.id === currentUser.id);
-    if (found) localStorage.setItem(USER_KEY, JSON.stringify(found));
-    
+    // Update local user if they are in the list
+    const localUser = storageService.getCurrentUser();
+    if (localUser.id !== 'guest') {
+      const updatedLocal = updatedUsers.find(u => u.id === localUser.id);
+      if (updatedLocal) localStorage.setItem(USER_KEY, JSON.stringify(updatedLocal));
+    }
+
     window.dispatchEvent(new Event('storage'));
     await storageService.broadcastToCloud();
-    return updatedUsers.length;
+    return true;
   },
 
   getListings: (): Listing[] => {
@@ -321,12 +321,26 @@ export const storageService = {
     localStorage.setItem(ADMIN_CRED_KEY, JSON.stringify({ password, recoveryKey }));
   },
 
-  resetAdminPassword: (recoveryKey: string, newPassword: string): boolean => {
-    const creds = storageService.getAdminAuth();
-    if (creds && creds.recoveryKey === recoveryKey) {
-      storageService.setAdminAuth(newPassword, recoveryKey);
+  updateAdminPassword: (newPassword: string) => {
+    const stored = localStorage.getItem(ADMIN_CRED_KEY);
+    if (stored) {
+      const creds = JSON.parse(stored);
+      localStorage.setItem(ADMIN_CRED_KEY, JSON.stringify({ ...creds, password: newPassword }));
       return true;
     }
+    return false;
+  },
+
+  resetAdminPassword: (recoveryKey: string, newPassword: string): boolean => {
+    const stored = localStorage.getItem(ADMIN_CRED_KEY);
+    if (!stored) return false;
+    try {
+      const creds = JSON.parse(stored);
+      if (creds.recoveryKey === recoveryKey.trim().toUpperCase()) {
+        localStorage.setItem(ADMIN_CRED_KEY, JSON.stringify({ ...creds, password: newPassword }));
+        return true;
+      }
+    } catch { return false; }
     return false;
   },
 
@@ -389,25 +403,6 @@ export const storageService = {
     if (idx !== -1) {
       listings[idx].status = AdStatus.TRASHED;
       listings[idx].createdAt = new Date().toISOString(); 
-      localStorage.setItem(LISTINGS_KEY, JSON.stringify(listings));
-      window.dispatchEvent(new Event('storage'));
-      await storageService.broadcastToCloud();
-    }
-  },
-
-  purgeListing: async (id: string) => {
-    const listings = storageService.getListings().filter(l => l.id !== id);
-    localStorage.setItem(LISTINGS_KEY, JSON.stringify(listings));
-    window.dispatchEvent(new Event('storage'));
-    await storageService.broadcastToCloud();
-  },
-
-  restoreListing: async (id: string) => {
-    const listings = storageService.getListings();
-    const idx = listings.findIndex(l => l.id === id);
-    if (idx !== -1) {
-      listings[idx].status = AdStatus.PENDING; 
-      listings[idx].createdAt = new Date().toISOString();
       localStorage.setItem(LISTINGS_KEY, JSON.stringify(listings));
       window.dispatchEvent(new Event('storage'));
       await storageService.broadcastToCloud();

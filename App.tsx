@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { X, Send, Sparkles, Loader2, Minus, ChevronUp, Radio } from 'lucide-react';
@@ -141,13 +140,11 @@ const AIChatbot: React.FC<{ lang: Language, isOpen: boolean, onClose: () => void
 };
 
 const Layout: React.FC<{ children: React.ReactNode; lang: Language; onLangChange: (l: Language) => void; syncStatus: 'syncing' | 'synced' | 'local' | 'error' }> = ({ children, lang, onLangChange, syncStatus }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(sidebarOpen => sidebarOpen); // dummy for update
   const [sidebarIsOpen, setSidebarIsOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const { pathname } = useLocation();
   const mainRef = useRef<HTMLElement>(null);
 
-  // CHRONO-SCROLL: Reset position to top on navigation change
   useEffect(() => {
     if (mainRef.current) {
       mainRef.current.scrollTo({ top: 0, behavior: 'smooth' });
@@ -175,15 +172,27 @@ const App: React.FC = () => {
   const [lang, setLang] = useState<Language>((localStorage.getItem('tz_lang') as Language) || 'en');
   const [syncStatus, setSyncStatus] = useState<'syncing' | 'synced' | 'local' | 'error'>('syncing');
 
+  // HEARTBEAT PROTOCOL: Real check for Hostinger Connection
   useEffect(() => {
     storageService.startBackgroundSync();
-    const handleStorageUpdate = () => {
-      setTimeout(() => setSyncStatus('synced'), 500);
+    
+    const checkHealth = async () => {
+      const health = await storageService.getBackendHealth();
+      if (health.status.includes('Active')) {
+        setSyncStatus('synced');
+      } else if (health.status.includes('Offline')) {
+        setSyncStatus('error');
+      } else {
+        setSyncStatus('local');
+      }
     };
-    window.addEventListener('storage', handleStorageUpdate);
+
+    checkHealth(); // Initial check
+    const interval = setInterval(checkHealth, 30000); // Pulse every 30s
+    
     return () => {
       storageService.stopBackgroundSync();
-      window.removeEventListener('storage', handleStorageUpdate);
+      clearInterval(interval);
     };
   }, []);
 
