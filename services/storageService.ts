@@ -95,21 +95,32 @@ export const storageService = {
       });
       if (!response.ok) return 'local';
       const result = await response.json();
-      const cloudData = result.data || result;
+      
+      // Robust structure detection for different API response styles
+      const cloudData = result?.data || (result?.listings ? result : null);
 
       if (cloudData) {
         const resolveCollection = (localKey: string, cloudArray: any[], identifier: string = 'id', timeKey: string = 'createdAt') => {
+          if (!Array.isArray(cloudArray)) return;
+          
           const stored = localStorage.getItem(localKey);
           const local = stored ? JSON.parse(stored) : [];
           const mergedMap = new Map();
           
-          [...cloudArray, ...local].forEach(item => {
+          // Seed with local data first
+          local.forEach((item: any) => {
+            if (item && item[identifier]) mergedMap.set(item[identifier], item);
+          });
+
+          // Merge cloud data, prioritizing later timestamps
+          cloudArray.forEach(item => {
             if (!item || !item[identifier]) return;
             const existing = mergedMap.get(item[identifier]);
             if (!existing || new Date(item[timeKey]) > new Date(existing[timeKey])) {
               mergedMap.set(item[identifier], item);
             }
           });
+
           localStorage.setItem(localKey, JSON.stringify(Array.from(mergedMap.values())));
         };
 
@@ -121,17 +132,23 @@ export const storageService = {
         [...remoteUsers, ...localUsers].forEach(u => {
           if (!u || !u.id) return;
           const existing = userMap.get(u.id);
-          if (!existing || u.credits > (existing.credits || 0) || new Date(u.joinedAt) > new Date(existing.joinedAt)) {
+          if (!existing || (u.credits || 0) > (existing.credits || 0) || new Date(u.joinedAt) > new Date(existing.joinedAt)) {
              userMap.set(u.id, u);
           }
         });
         localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(Array.from(userMap.values())));
         
-        if (cloudData.news) localStorage.setItem(NEWS_KEY, JSON.stringify(cloudData.news));
-        if (cloudData.dealers) localStorage.setItem(DEALERS_KEY, JSON.stringify(cloudData.dealers));
-        if (cloudData.promotions) localStorage.setItem(PROMOTIONS_KEY, JSON.stringify(cloudData.promotions));
-        if (cloudData.subscribers) localStorage.setItem(SUBSCRIBERS_KEY, JSON.stringify(cloudData.subscribers));
-        if (cloudData.messages) localStorage.setItem(MESSAGES_KEY, JSON.stringify(cloudData.messages));
+        if (cloudData.news) resolveCollection(NEWS_KEY, cloudData.news, 'id', 'publishedAt');
+        if (cloudData.dealers) resolveCollection(DEALERS_KEY, cloudData.dealers, 'id', 'joinedAt');
+        if (cloudData.promotions) resolveCollection(PROMOTIONS_KEY, cloudData.promotions, 'id', 'createdAt');
+        
+        if (cloudData.subscribers) {
+          const localSubscribers = JSON.parse(localStorage.getItem(SUBSCRIBERS_KEY) || '[]');
+          const mergedSubscribers = Array.from(new Set([...localSubscribers, ...cloudData.subscribers]));
+          localStorage.setItem(SUBSCRIBERS_KEY, JSON.stringify(mergedSubscribers));
+        }
+
+        if (cloudData.messages) resolveCollection(MESSAGES_KEY, cloudData.messages, 'id', 'timestamp');
         
         const localUser = storageService.getCurrentUser();
         if (localUser.id !== 'guest') {
@@ -142,7 +159,10 @@ export const storageService = {
         window.dispatchEvent(new Event('storage'));
       }
       return 'synced';
-    } catch { return 'local'; }
+    } catch (err) { 
+      console.error("Sync Error:", err);
+      return 'local'; 
+    }
   },
 
   broadcastToCloud: async () => {
@@ -156,7 +176,7 @@ export const storageService = {
         subscribers: storageService.getSubscribers(),
         messages: storageService.getInternalMessages(),
         lastUpdate: new Date().toISOString(),
-        version: '5.2.0-PROD-STABLE',
+        version: '5.3.0-PROD-STABLE',
         node_id: DB_NODE_ID
       };
       
@@ -218,7 +238,6 @@ export const storageService = {
     const updatedUsers = users.map(u => ({ ...u, credits: (u.credits || 0) + amount }));
     localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(updatedUsers));
     
-    // Update local user if they are in the list
     const localUser = storageService.getCurrentUser();
     if (localUser.id !== 'guest') {
       const updatedLocal = updatedUsers.find(u => u.id === localUser.id);
@@ -234,7 +253,7 @@ export const storageService = {
     const stored = localStorage.getItem(LISTINGS_KEY);
     try { 
       const parsed = stored ? JSON.parse(stored) : null;
-      // Seed with INITIAL_LISTINGS if storage is empty, ensuring the dashboard isn't blank
+      // If local storage is empty, we return INITIAL_LISTINGS to ensure the app doesn't look dead
       const data = (Array.isArray(parsed) && parsed.length > 0) ? parsed : INITIAL_LISTINGS;
       return [...data].sort((a, b) => {
         if (a.featured && !b.featured) return -1;
@@ -242,6 +261,24 @@ export const storageService = {
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
     } catch { return INITIAL_LISTINGS; }
+  },
+
+  getListingById: async (id: string): Promise<Listing | null> => {
+    if (!id) return null;
+    
+    const findInCurrent = () => storageService.getListings().find(l => l.id.toLowerCase() === id.toLowerCase());
+    
+    // 1. Check local data (includes hardcoded initial listings)
+    const local = findInCurrent();
+    if (local) return local;
+
+    // 2. If not found, it might be a newly broadcasted ad from another device. Force a sync.
+    const syncResult = await storageService.syncWithCloud();
+    if (syncResult === 'synced') {
+      return findInCurrent() || null;
+    }
+
+    return null;
   },
 
   saveListing: async (listing: Listing) => {
@@ -253,7 +290,7 @@ export const storageService = {
       const isPakistan = listing.location.country === 'Pakistan';
       const cost = listing.featured ? (isPakistan ? 10 : 2) : (isPakistan ? 5 : 1);
       
-      if (user.id !== 'guest' && user.id !== 'user_guest') {
+      if (user.id !== 'guest' && user.id !== 'user_guest' && user.id !== 'user_admin') {
         if (user.credits < cost) {
           throw new Error(`Insufficient Trade Credits. Required: ${cost}, Available: ${user.credits}`);
         }
@@ -269,8 +306,12 @@ export const storageService = {
     } else {
       listings[existingIndex] = listing;
     }
+    
+    // Save to local storage
     localStorage.setItem(LISTINGS_KEY, JSON.stringify(listings));
     window.dispatchEvent(new Event('storage'));
+    
+    // Broadcast to global node immediately
     await storageService.broadcastToCloud();
   },
 

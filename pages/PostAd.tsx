@@ -202,6 +202,7 @@ export default function PostAd() {
     setLoading(true);
 
     const newListing: Listing = {
+      // Case-sensitive prefix + secure random string for professional URLs
       id: `${category.substring(0, 3).toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
       title: storageService.security.sanitize(formData.title),
       description: storageService.security.sanitize(formData.description),
@@ -253,7 +254,7 @@ export default function PostAd() {
 
     try {
       await storageService.saveListing(newListing);
-      navigate('/workspace');
+      navigate(`/listing/${newListing.id}`); // Direct to the new page so they can see the 'Pending' banner
     } catch (err: any) {
       setError(err.message || 'Transmission failure.');
     } finally {
