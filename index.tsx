@@ -1,37 +1,34 @@
-import React from 'react';
-import { createRoot } from 'react-dom/client';
-import App from './App';
-
-// Dynamic Google Maps Loader
-const loadGoogleMaps = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    console.warn("Google Maps API Key not detected in environment. Mapping features disabled.");
-    return;
-  }
-  
-  if (!document.querySelector('script[src*="maps.googleapis.com"]')) {
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
-    script.async = true;
-    script.defer = true;
-    document.head.appendChild(script);
-  }
+export const COUNTRIES: Record<string, string[]> = {
+  'Pakistan': ['Karachi', 'Lahore', 'Islamabad', 'Rawalpindi', 'Faisalabad'],
+  'India': ['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata'],
+  'United Arab Emirates': ['Dubai', 'Abu Dhabi', 'Sharjah', 'Ajman', 'Ras Al Khaimah'],
+  'Saudi Arabia': ['Riyadh', 'Jeddah', 'Mecca', 'Medina', 'Dammam'],
+  'Qatar': ['Doha', 'Al Wakrah', 'Al Khor', 'Al Rayyan'],
+  'Kuwait': ['Kuwait City', 'Hawalli', 'Salmiya', 'Farwaniya'],
+  'Oman': ['Muscat', 'Salalah', 'Sohar', 'Nizwa'],
+  'Bahrain': ['Manama', 'Riffa', 'Muharraq', 'Hamad Town']
 };
 
-const rootElement = document.getElementById('root');
-if (!rootElement) {
-  throw new Error("Could not find root element to mount to");
-}
+export const CITIES = COUNTRIES;
 
-try {
-  loadGoogleMaps();
-  const root = createRoot(rootElement);
-  root.render(
-    <React.StrictMode>
-      <App />
-    </React.StrictMode>
-  );
-} catch (error) {
-  console.error("Critical error during application mount:", error);
-}
+export const COUNTRY_CODES: Record<string, string> = {
+  'Pakistan': 'PK',
+  'India': 'IN',
+  'United Arab Emirates': 'AE',
+  'Saudi Arabia': 'SA',
+  'Qatar': 'QA',
+  'Kuwait': 'KW',
+  'Oman': 'OM',
+  'Bahrain': 'BH'
+};
+
+export const CURRENCIES: Record<string, { code: string; symbol: string }> = {
+  'Pakistan': { code: 'PKR', symbol: '₨' },
+  'India': { code: 'INR', symbol: '₹' },
+  'United Arab Emirates': { code: 'AED', symbol: 'د.إ' },
+  'Saudi Arabia': { code: 'SAR', symbol: '﷼' },
+  'Qatar': { code: 'QAR', symbol: '﷼' },
+  'Kuwait': { code: 'KWD', symbol: 'د.ك' },
+  'Oman': { code: 'OMR', symbol: '﷼' },
+  'Bahrain': { code: 'BHD', symbol: '.د.ب' }
+};
