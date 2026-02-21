@@ -18,13 +18,17 @@ import {
   Filter,
   Search,
   Download,
-  Users,
-  Activity,
-  Globe
+  Save
 } from 'lucide-react';
-import { storageService, setupStorageSync } from '../services/storageService';
+import { storageService } from '../services/storageService';
+import { processImage } from '../services/imageService';
+import { optimizeNewsArticle } from '../services/geminiService';
 import { Listing, AdStatus, NewsArticle } from '../types';
 import { Link } from 'react-router-dom';
+
+// Constants
+const MASTER_EMERGENCY_KEY = import.meta.env.TRAZOT-MASTER-2025-RECOVERY-NODE || 'Logic@123';
+const OFFICIAL_DOMAIN = 'https://trazot.com';
 
 type AdminViewState = 'login' | 'setup' | 'forgot' | 'dashboard';
 
@@ -121,6 +125,9 @@ const AdminPanel: React.FC = () => {
     content: ''
   });
 
+  // Image optimization state
+  const [isOptimizing, setIsOptimizing] = useState(false);
+
   // Stats
   const [stats, setStats] = useState({
     totalListings: 0,
@@ -152,17 +159,23 @@ const AdminPanel: React.FC = () => {
 
     initializeAdmin();
 
-    // Setup cross-tab synchronization
-    const cleanupSync = setupStorageSync((key) => {
-      console.log(`Data changed in another tab: ${key}`);
-      if (key === 'tz_listings_sync') {
-        loadListings();
-      } else if (key === 'tz_news_sync') {
-        loadNews();
+    // Setup storage event listener for cross-tab sync
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'tz_listings_sync' || e.key === 'tz_news_sync') {
+        console.log(`Data changed in another tab: ${e.key}`);
+        if (e.key === 'tz_listings_sync') {
+          loadListings();
+        } else {
+          loadNews();
+        }
       }
-    });
+    };
 
-    return cleanupSync;
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   // Apply filters when listings or filter criteria change
@@ -419,6 +432,25 @@ const AdminPanel: React.FC = () => {
     }
   };
 
+  const handleImageOptimize = async () => {
+    if (!newsForm.image) return;
+    
+    setIsOptimizing(true);
+    try {
+      const optimizedUrl = await processImage(newsForm.image, {
+        maxWidth: 1200,
+        quality: 85,
+        format: 'webp'
+      });
+      setNewsForm(p => ({ ...p, image: optimizedUrl }));
+      setSuccessMessage('Image optimized successfully');
+    } catch (err) {
+      setError('Failed to optimize image');
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
+
   const handleCreateNews = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -436,9 +468,13 @@ const AdminPanel: React.FC = () => {
         throw new Error('Please enter a valid image URL');
       }
       
+      // Optimize content with Gemini
+      const optimizedContent = await optimizeNewsArticle(newsForm.content);
+      
       const newArticle: NewsArticle = {
         id: Math.random().toString(36).substring(7),
         ...newsForm,
+        content: optimizedContent,
         author: 'Admin',
         publishedAt: new Date().toISOString()
       };
@@ -464,9 +500,10 @@ const AdminPanel: React.FC = () => {
     setError(null);
     
     try {
-      const { listings: freshListings, news: freshNews } = await storageService.refreshAllData();
-      setListings(freshListings);
-      setNews(freshNews);
+      await Promise.all([
+        loadListings(),
+        loadNews()
+      ]);
       setSuccessMessage('Data refreshed successfully');
     } catch (err) {
       setError('Failed to refresh data');
@@ -479,7 +516,8 @@ const AdminPanel: React.FC = () => {
     if (confirm('Clear all cached data? This will force a fresh load from the server.')) {
       setIsLoading(true);
       try {
-        await storageService.clearCache();
+        localStorage.removeItem('tz_listings_fallback');
+        localStorage.removeItem('tz_news_fallback');
         await handleRefresh();
         setSuccessMessage('Cache cleared successfully');
       } catch (err) {
@@ -496,7 +534,8 @@ const AdminPanel: React.FC = () => {
         listings: filteredListings,
         news: news,
         exportDate: new Date().toISOString(),
-        stats: stats
+        stats: stats,
+        domain: OFFICIAL_DOMAIN
       };
       
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -758,8 +797,8 @@ const AdminPanel: React.FC = () => {
               Last Sync: {stats.lastSync}
             </div>
             <div className="flex items-center gap-1.5 text-gray-400">
-              <Globe className="w-3.5 h-3.5" /> 
-              Live Data
+              <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+              {OFFICIAL_DOMAIN}
             </div>
           </div>
         </div>
@@ -1236,13 +1275,24 @@ const AdminPanel: React.FC = () => {
                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
                     Banner Image URL <span className="text-red-400">*</span>
                   </label>
-                  <input 
-                    required 
-                    value={newsForm.image} 
-                    onChange={e => setNewsForm(p => ({ ...p, image: e.target.value }))} 
-                    placeholder="https://example.com/image.jpg"
-                    className="w-full bg-gray-50 p-4 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-emerald-500 transition-all"
-                  />
+                  <div className="flex gap-2">
+                    <input 
+                      required 
+                      value={newsForm.image} 
+                      onChange={e => setNewsForm(p => ({ ...p, image: e.target.value }))} 
+                      placeholder="https://example.com/image.jpg"
+                      className="flex-1 bg-gray-50 p-4 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-emerald-500 transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleImageOptimize}
+                      disabled={isOptimizing || !newsForm.image}
+                      className="px-4 bg-emerald-100 text-emerald-700 rounded-2xl hover:bg-emerald-600 hover:text-white transition-all disabled:opacity-50"
+                      title="Optimize Image"
+                    >
+                      {isOptimizing ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                    </button>
+                  </div>
                   {newsForm.image && (
                     <div className="mt-2 relative h-20 rounded-xl overflow-hidden">
                       <img 
